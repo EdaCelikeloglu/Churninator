@@ -1,10 +1,10 @@
 import streamlit as st
 
 # Başlık
-st.title('Merhaba, Streamlit!')
+st.title('Merhaba, PowerPuff Girls!')
 
 # Metin
-st.write('Bu bir Streamlit uygulamasıdır.')
+st.write('Bu bir deneme uygulamasıdır.')
 
 # Grafik
 import matplotlib.pyplot as plt
@@ -14,4 +14,3 @@ y = np.sin(x)
 plt.plot(x, y)
 st.pyplot(plt)
 
-#kfhkf
