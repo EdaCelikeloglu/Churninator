@@ -1,10 +1,10 @@
-import streamlit as st
+from streamlit import pyplot, title, write
 
 # Başlık
-st.title('Merhaba, PowerPuff Girls!')
+title('Merhaba, PowerPuff Girls!')
 
 # Metin
-st.write('Bu bir deneme uygulamasıdır.')
+write('Bu bir deneme uygulamasıdır.')
 
 # Grafik
 import matplotlib.pyplot as plt
@@ -12,5 +12,5 @@ import numpy as np
 x = np.linspace(0, 10, 100)
 y = np.sin(x)
 plt.plot(x, y)
-st.pyplot(plt)
+pyplot(plt)
 
