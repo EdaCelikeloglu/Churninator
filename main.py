@@ -60,6 +60,8 @@ pd.set_option('display.float_format', lambda x: '%.3f' % x)
 df = pd.read_csv("BankChurners.csv")
 df.head()
 
+df.shape
+
 df.columns
 
 df.info()
@@ -76,7 +78,7 @@ df.columns
 # Card_Category: müşterinin sahip olduğu kartın türü (Blue, Silver, Gold, Platinum)
 # Months_on_book: müşteri kaç aydır bu bankada
 # Total_Relationship_Count: Total no. of products held by the customer. yani müşterinin aynı bankadan hem kredi kartı
-#                           hem banka kartı ve farklı tipte hesapları olabilir sevings account gibi
+#                           hem banka kartı ve farklı tipte hesapları olabilir savings account gibi
 # Months_Inactive_12_mon: müşterinin son 12 ayda kaç ay inactive kaldığının sayısı
 # Contacts_Count_12_mon: müşteriyle son 12 ayda kurulan iletişim sayısı
 # Credit_Limit: müşterinin kredi kartının limiti
@@ -185,6 +187,7 @@ for col in num_cols:
 for col in cat_cols:
     cat_summary(df, col, plot=True)
 
+df.head()
 
 # Base model
 df = one_hot_encoder(df, cat_cols, drop_first=True)
@@ -231,7 +234,7 @@ base_models(X, y, scoring="accuracy")
 
 X_train, X_test, y_train, y_test = train_test_split(X,
                                                     y,
-                                                    test_size=0.50, random_state=42)
+                                                    test_size=0.20, random_state=42)
 log_model = LogisticRegression().fit(X_train, y_train)
 
 y_pred = log_model.predict(X_test)
@@ -240,34 +243,34 @@ y_prob = log_model.predict_proba(X_test)[:, 1]
 print(classification_report(y_test, y_pred))
 
 df.head()
+#33333333333333333333333333333333333333333333333333333333333333333
 
+df = pd.read_csv("BankChurners.csv")
 
-
-
-# Enconding işlemleri
-df[cat_cols].head(20)
-
-# Bağımlı değişkenimizin ismini target yapalım
-df["Target"] = df["Attrition_Flag"]
-
-df["Target"].unique()
-
-
-df.head()
-
-df.drop("Attrition_Flag", axis=1, inplace=True)
-
+df.drop(["Naive_Bayes_Classifier_Attrition_Flag_Card_Category_Contacts_Count_12_mon_Dependent_count_Education_Level_Months_Inactive_12_mon_1",
+         "Naive_Bayes_Classifier_Attrition_Flag_Card_Category_Contacts_Count_12_mon_Dependent_count_Education_Level_Months_Inactive_12_mon_2"], inplace=True, axis=1)
 
 cat_cols, num_cols, cat_but_car = grab_col_names(df)
 
+df[cat_cols].head(20)
+
+# Bağımlı değişkenimizin ismini target yapalım
+#df["Target"] = df["Attrition_Flag"]
+#df["Target"].unique()
+#df.head()
+# df.drop("Attrition_Flag", axis=1, inplace=True)
+df.rename(columns={"Attrition_Flag":"Target"}, inplace=True)
+
+df["CLIENTNUM"].nunique() # 10127 - yani duplicate yok id'de
+df.drop("CLIENTNUM", axis=1, inplace=True)
+
+cat_cols, num_cols, cat_but_car = grab_col_names(df)
+
+# Encoding işlemleri
 df["Target"] = df.apply(lambda x: 0 if (x["Target"] == "Existing Customer") else 1, axis=1)
 
 df.head()
 df.shape # (10127, 21)
-
-df["CLIENTNUM"].nunique() # 10127 - yani duplicate yok id'de
-
-df.drop("CLIENTNUM", axis=1, inplace=True)
 
 # Gender
 df["Gender"] = df.apply(lambda x: 1 if (x["Gender"] == "F") else 0, axis=1)
@@ -278,8 +281,7 @@ df["Gender"].unique()
 from sklearn.preprocessing import OrdinalEncoder
 
 df["Education_Level"].unique()
-cats = ['High School', 'Graduate', 'Uneducated', 'Unknown', 'College',
-       'Post-Graduate', 'Doctorate']
+cats = ['Uneducated', 'High School', 'College', 'Graduate', 'Post-Graduate', 'Doctorate', 'Unknown']
 category_codes = [0, 1, 2, 3, 4, 5, 6]
 
 df["Education_Level"].head()
@@ -291,18 +293,70 @@ df["Education_Level"].head(20)
 
 df.head()
 
-# Income_Category
-df["Income_Category"].unique() # ['$60K - $80K', 'Less than $40K', '$80K - $120K', '$40K - $60K', '$120K +', 'Unknown']
-df["Income_Category"] = df["Income_Category"].apply(lambda x: "Durumu çok kötü" if x == 'Less than $40K' else x)
-df["Income_Category"] = df["Income_Category"].apply(lambda x: "Durumu kötü" if x == '$40K - $60K' else x)
-df["Income_Category"] = df["Income_Category"].apply(lambda x: "Orta halli" if x == '$60K - $80K' else x)
-df["Income_Category"] = df["Income_Category"].apply(lambda x: "Zengin" if x == '$80K - $120K' else x)
-df["Income_Category"] = df["Income_Category"].apply(lambda x: "Çok zengin" if x == '$120K +' else x)
+
+
+df["Income_Category"].value_counts()
+
+df["Income_Category"].unique()
+
+cols_with_unknown = ['Income_Category', "Marital_Status", "Education_Level"]
+for col in cols_with_unknown:
+    df[col] = df[col].apply(lambda x: np.nan if x == 'Unknown' else x)
+
+
+
+from sklearn.preprocessing import OrdinalEncoder
+
+
+income_cats = ['Less than $40K', '$40K - $60K', '$60K - $80K', '$80K - $120K', '$120K +', 'Unknown']
+income_codes = [0, 1, 2, 3, 4, 5]
+
+df["Income_Category"].head()
+
+ordinal_encoder = OrdinalEncoder(categories=[income_cats])
+df["Income_Category"] = ordinal_encoder.fit_transform(df[['Income_Category']])
+
+df["Income_Category"].head(20)
+
+df.head()
+
+df["Income_Category"].unique()
+
+df["Income_Category"].value_counts()
+df["Income_Category"].isnull().sum() # 1112
+# 0.000    3561
+# 1.000    1790
+# 3.000    1535
+# 2.000    1402
+# 4.000     727
+
+# knn'in uygulanması. knn komşuların ortalamasıyla doldurur
+dff = df.copy()
+from sklearn.impute import KNNImputer
+imputer = KNNImputer(n_neighbors=1)
+dff["Income_Category"] = pd.DataFrame(imputer.fit_transform(dff["Income_Category"]), columns=dff.columns)
+#dff["Income_Category"] = pd.DataFrame(imputer.fit_transform(dff["Income_Category"]))
+dff.head()
+
+
+dff = pd.DataFrame(imputer.fit_transform(dff), columns=dff.columns)
+dff.head()
+
+
+
+
+
+
+
+
+
+
 
 df["Income_Category"].unique()
 
 df.head()
 
+cat_cols, num_cols, cat_but_car = grab_col_names(df)
 
 # outliers
 # IQR
@@ -310,13 +364,16 @@ for col in num_cols:
     print(col)
     grab_outliers(df, col)
 
+
+
+############################# encode etmeden, IQR yapmadan, sırf num_cols'da LOF
 # LOF - string ile çalışmıyor
 # pca- temel bileşen analizi, 100 değişken varken 2 değişkene indirgem
 
 # bakalım çok değişkenli yaklaştığımızda ne olacak
 # buradaki komşuluk sayısı 20, default da 20 zaten
 clf = LocalOutlierFactor(n_neighbors=20)
-clf.fit_predict(df) # skorları getirir
+clf.fit_predict(df[num_cols]) # skorları getirir
 
 # skorları tutma
 df_scores = clf.negative_outlier_factor_
@@ -330,18 +387,15 @@ np.sort(df_scores)[0:5] # en kötü 5 gözlem
 # en marjinal değişiklik, kırılım, nerede olduysa onu eşik değer olarak belirleyebiliriz
 # mesela burada 3. index'teki değeri seçmeyi tercih edebiliriz
 scores = pd.DataFrame(np.sort(df_scores))
-scores.plot(stacked=True, xlim=[0, 50], style='.-')
+scores.plot(stacked=True, xlim=[0, 100], style='.-')
 plt.show()
 
-th = np.sort(df_scores)[3]
+th = np.sort(df_scores)[25]
 
 # -4'ten daha küçük yani -5,-6 gibi değerleri seçme
 df[df_scores < th]
 
 df[df_scores < th].shape
-# 3 taneymiş, değişkenlere tek tek baktığımızda binlerce çıkmıştı
-
-
 # bunların neden aykırı olduğunu anlamak istersek:
 # özet istatistikleriyle kıyaslayarak anlam çıkarabiliriz
 df.describe([0.01, 0.05, 0.75, 0.90, 0.99]).T
@@ -349,9 +403,23 @@ df.describe([0.01, 0.05, 0.75, 0.90, 0.99]).T
 df[df_scores < th].index
 
 df[df_scores < th].drop(axis=0, labels=df[df_scores < th].index)
+
+#outlier
+for col in num_cols:
+    print(col)
+    grab_outliers(df, col)
+
+for col in num_cols:
+    replace_with_thresholds(df, col)
+
+
+
+
+
 # ağaç yöntemlerinde çok dokunulmanması öneriliyor, en kötü ucundan dokunulması gerek
 
 
-# for col in num_cols:
-#     replace_with_thresholds(df, col)
 
+
+
+############################# encode ettikten sonra LOF
