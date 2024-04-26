@@ -64,6 +64,31 @@ df.columns
 
 df.info()
 
+df.columns
+# CLIENTNUM: müşteri id'si
+# Attrition_Flag: TARGET. Churn etti mi etmedi mi bilgisine sahip. (kaggle'da şöyle yazmışlar: if the account is closed then 1 else 0)
+# Customer_Age: müşterinin yaşı
+# Gender: müşterinin cinsiyeti (F, M)
+# Dependent_count: müşterinin bakmakla yükümlü olduğu kişi sayısı
+# Education_Level: eğitim seviyesi (High School, Graduate, Uneducated, Unknown, College, Post-Graduate, Doctorate)
+# Marital_Status: müşterinin medeni durumu (Married, Single, Unknown, Divorced)
+# Income_Category: müşterinin hangi gelir kategorisinde olduğu bilgisi ($60K - $80K, Less than $40K, $80K - $120K, $40K - $60K, $120K +, Unknown)
+# Card_Category: müşterinin sahip olduğu kartın türü (Blue, Silver, Gold, Platinum)
+# Months_on_book: müşteri kaç aydır bu bankada
+# Total_Relationship_Count: Total no. of products held by the customer. yani müşterinin aynı bankadan hem kredi kartı
+#                           hem banka kartı ve farklı tipte hesapları olabilir sevings account gibi
+# Months_Inactive_12_mon: müşterinin son 12 ayda kaç ay inactive kaldığının sayısı
+# Contacts_Count_12_mon: müşteriyle son 12 ayda kurulan iletişim sayısı
+# Credit_Limit: müşterinin kredi kartının limiti
+# Total_Revolving_Bal: devir bakiyesi (Bu terim, müşterinin ödeme yapması gereken ancak henüz ödenmemiş olan borç
+# #                     miktarını ifade eder. Yani, müşterinin kredi kartı hesabında biriken ve henüz ödenmemiş olan borç tutarıdır.)
+# Avg_Open_To_Buy:  müşterinin ulaşabileceği maksimum kredi miktarının son 12 aydaki ortalaması
+# Total_Amt_Chng_Q4_Q1: transaction sayısındaki 4. çeyrek ve 1. çeyrek arasındaki fark
+# Total_Trans_Amt: son 12 aydaki tüm transaction'lardan gelen miktar
+# Total_Trans_Ct: son 12 aydaki toplam transaction sayısı
+# Total_Ct_Chng_Q4_Q1: transaction miktarlarının 4. çeyrek ve 1. çeyrek arasındaki fark
+# Avg_Utilization_Ratio: müşterinin mevcut kredi kartı borçlarının kredi limitine oranını ifade eder
+
 #fonksiyonlarımız
 def grab_col_names(dataframe, cat_th=9, car_th=20):
     #cat_cols, cat_but_car
@@ -160,14 +185,8 @@ for col in num_cols:
 for col in cat_cols:
     cat_summary(df, col, plot=True)
 
-for col in num_cols:
-    print(col)
-    grab_outliers(df, col)
 
-for col in num_cols:
-    replace_with_thresholds(df, col)
-
-#base model
+# Base model
 df = one_hot_encoder(df, cat_cols, drop_first=True)
 
 df.head()
@@ -180,17 +199,13 @@ df[num_cols] = pd.DataFrame(df_scaled, columns=df[num_cols].columns)
 
 df.head()
 
-# Base Models
 
-df["Target"] = df["Attrition_Flag_Existing Customer"]
-
-
-y = df["Target"]
-X = df.drop(["Target", "CLIENTNUM"], axis=1)
+y = df["Attrition_Flag_Existing Customer"]
+X = df.drop(["Attrition_Flag_Existing Customer", "CLIENTNUM"], axis=1)
 
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
-def base_models(X, y, scoring="roc_auc"):
+def base_models(X, y, scoring="accuracy"):
     print("Base Models....")
     classifiers = [('LR', LogisticRegression()),
                    ('KNN', KNeighborsClassifier()),
@@ -205,11 +220,11 @@ def base_models(X, y, scoring="roc_auc"):
                    ]
 
     for name, classifier in classifiers:
-        cv_results = cross_validate(classifier, X, y, cv=5, scoring=scoring)
+        cv_results = cross_validate(classifier, X, y, cv=10, scoring=scoring)
         print(f"{scoring}: {round(cv_results['test_score'].mean(), 4)} ({name}) ")
 
 
-base_models(X, y, scoring="roc_auc")
+base_models(X, y, scoring="accuracy")
 
 
 
@@ -223,3 +238,120 @@ y_pred = log_model.predict(X_test)
 y_prob = log_model.predict_proba(X_test)[:, 1]
 
 print(classification_report(y_test, y_pred))
+
+df.head()
+
+
+
+
+# Enconding işlemleri
+df[cat_cols].head(20)
+
+# Bağımlı değişkenimizin ismini target yapalım
+df["Target"] = df["Attrition_Flag"]
+
+df["Target"].unique()
+
+
+df.head()
+
+df.drop("Attrition_Flag", axis=1, inplace=True)
+
+
+cat_cols, num_cols, cat_but_car = grab_col_names(df)
+
+df["Target"] = df.apply(lambda x: 0 if (x["Target"] == "Existing Customer") else 1, axis=1)
+
+df.head()
+df.shape # (10127, 21)
+
+df["CLIENTNUM"].nunique() # 10127 - yani duplicate yok id'de
+
+df.drop("CLIENTNUM", axis=1, inplace=True)
+
+# Gender
+df["Gender"] = df.apply(lambda x: 1 if (x["Gender"] == "F") else 0, axis=1)
+df["Gender"].unique()
+
+# ordinal encoder
+# Education_Level
+from sklearn.preprocessing import OrdinalEncoder
+
+df["Education_Level"].unique()
+cats = ['High School', 'Graduate', 'Uneducated', 'Unknown', 'College',
+       'Post-Graduate', 'Doctorate']
+category_codes = [0, 1, 2, 3, 4, 5, 6]
+
+df["Education_Level"].head()
+
+ordinal_encoder = OrdinalEncoder(categories=[cats])
+df["Education_Level"] = ordinal_encoder.fit_transform(df[['Education_Level']])
+
+df["Education_Level"].head(20)
+
+df.head()
+
+# Income_Category
+df["Income_Category"].unique() # ['$60K - $80K', 'Less than $40K', '$80K - $120K', '$40K - $60K', '$120K +', 'Unknown']
+df["Income_Category"] = df["Income_Category"].apply(lambda x: "Durumu çok kötü" if x == 'Less than $40K' else x)
+df["Income_Category"] = df["Income_Category"].apply(lambda x: "Durumu kötü" if x == '$40K - $60K' else x)
+df["Income_Category"] = df["Income_Category"].apply(lambda x: "Orta halli" if x == '$60K - $80K' else x)
+df["Income_Category"] = df["Income_Category"].apply(lambda x: "Zengin" if x == '$80K - $120K' else x)
+df["Income_Category"] = df["Income_Category"].apply(lambda x: "Çok zengin" if x == '$120K +' else x)
+
+df["Income_Category"].unique()
+
+df.head()
+
+
+# outliers
+# IQR
+for col in num_cols:
+    print(col)
+    grab_outliers(df, col)
+
+# LOF - string ile çalışmıyor
+# pca- temel bileşen analizi, 100 değişken varken 2 değişkene indirgem
+
+# bakalım çok değişkenli yaklaştığımızda ne olacak
+# buradaki komşuluk sayısı 20, default da 20 zaten
+clf = LocalOutlierFactor(n_neighbors=20)
+clf.fit_predict(df) # skorları getirir
+
+# skorları tutma
+df_scores = clf.negative_outlier_factor_
+df_scores[0:5]
+# df_scores = -df_scores -> eğer eksi değerleriyle değerlendirmek istemezsen, skorları pozitife çevirir
+np.sort(df_scores)[0:5] # en kötü 5 gözlem
+
+
+# elbow (dirsek) yöntemi
+# her bir nokta eşik değerini temsil ediyor
+# en marjinal değişiklik, kırılım, nerede olduysa onu eşik değer olarak belirleyebiliriz
+# mesela burada 3. index'teki değeri seçmeyi tercih edebiliriz
+scores = pd.DataFrame(np.sort(df_scores))
+scores.plot(stacked=True, xlim=[0, 50], style='.-')
+plt.show()
+
+th = np.sort(df_scores)[3]
+
+# -4'ten daha küçük yani -5,-6 gibi değerleri seçme
+df[df_scores < th]
+
+df[df_scores < th].shape
+# 3 taneymiş, değişkenlere tek tek baktığımızda binlerce çıkmıştı
+
+
+# bunların neden aykırı olduğunu anlamak istersek:
+# özet istatistikleriyle kıyaslayarak anlam çıkarabiliriz
+df.describe([0.01, 0.05, 0.75, 0.90, 0.99]).T
+
+df[df_scores < th].index
+
+df[df_scores < th].drop(axis=0, labels=df[df_scores < th].index)
+# ağaç yöntemlerinde çok dokunulmanması öneriliyor, en kötü ucundan dokunulması gerek
+
+
+# for col in num_cols:
+#     replace_with_thresholds(df, col)
+
