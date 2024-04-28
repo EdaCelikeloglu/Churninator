@@ -280,6 +280,21 @@ df["Gender"].unique()
 # Education_Level
 from sklearn.preprocessing import OrdinalEncoder
 
+###
+
+def ordinal_encoder(dataframe, col):
+                             if col is "Education_Level":
+                                                          col_cats = ['Uneducated', 'High School', 'College', 'Graduate', 'Post-Graduate', 'Doctorate', 'Unknown']
+                             if col is :
+                                                          
+                             cat_codes = range(0, len(col_cats))
+                             ordinal_encoder = OrdinalEncoder(categories=[col_cats])
+                             df[col] = ordinal_encoder.fit_transform(df[[col]])
+
+                             return df
+
+####
+
 df["Education_Level"].unique()
 cats = ['Uneducated', 'High School', 'College', 'Graduate', 'Post-Graduate', 'Doctorate', 'Unknown']
 category_codes = [0, 1, 2, 3, 4, 5, 6]
