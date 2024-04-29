@@ -1,55 +1,26 @@
-import graphviz
-import joblib
-import matplotlib.pyplot as plt
-import numpy as np
-import pandas as pd
-import seaborn as sns
-import warnings
 from catboost import CatBoostClassifier
 from lightgbm import LGBMClassifier
-from matplotlib import pyplot as plt
-from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier, VotingClassifier
-from sklearn.neighbors import LocalOutlierFactor
-from sklearn.preprocessing import OrdinalEncoder, RobustScaler
+from scipy.stats import chi2_contingency
+from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier, VotingClassifier, AdaBoostClassifier
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import (accuracy_score, precision_score, recall_score, f1_score, roc_auc_score, confusion_matrix,
                              classification_report, RocCurveDisplay)
 from sklearn.model_selection import train_test_split, GridSearchCV, cross_validate, validation_curve, RandomizedSearchCV
-from sklearn.neighbors import KNeighborsClassifier
-from sklearn.preprocessing import LabelEncoder
+from sklearn.neighbors import KNeighborsClassifier, LocalOutlierFactor
+from sklearn.preprocessing import LabelEncoder, OrdinalEncoder, RobustScaler, StandardScaler
 from sklearn.svm import SVC
 from sklearn.tree import DecisionTreeClassifier, export_graphviz, export_text
 from xgboost import XGBClassifier
+import graphviz
 import joblib
-import pandas as pd
-from lightgbm import LGBMClassifier
-from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier, VotingClassifier, AdaBoostClassifier
-from sklearn.linear_model import LogisticRegression
-from sklearn.model_selection import cross_validate, GridSearchCV
-from sklearn.neighbors import KNeighborsClassifier
-from sklearn.preprocessing import StandardScaler
-from sklearn.svm import SVC
-from sklearn.tree import DecisionTreeClassifier
-from xgboost import XGBClassifier
-
-
+import matplotlib.pyplot as plt
+import missingno as msno
 import numpy as np
 import pandas as pd
-import missingno as msno
-from scipy.stats import chi2_contingency
-import matplotlib.pyplot as plt
 import seaborn as sns
-#from catboost import CatBoostClassifier
-from sklearn.model_selection import train_test_split
-#from missingpy import MissForest
-from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score,roc_auc_score
-from sklearn.model_selection import train_test_split
-from sklearn.linear_model import LogisticRegression
-from sklearn.model_selection import GridSearchCV, cross_validate
-from sklearn.neighbors import LocalOutlierFactor
-from sklearn.preprocessing import LabelEncoder
-from sklearn.preprocessing import StandardScaler
 import warnings
+
+
 warnings.simplefilter(action="ignore")
 
 pd.set_option('display.max_columns', None)
@@ -58,15 +29,7 @@ pd.set_option('display.max_rows', None)
 pd.set_option('display.float_format', lambda x: '%.3f' % x)
 
 df = pd.read_csv("BankChurners.csv")
-df.head()
 
-df.shape
-
-df.columns
-
-df.info()
-
-df.columns
 # CLIENTNUM: müşteri id'si
 # Attrition_Flag: TARGET. Churn etti mi etmedi mi bilgisine sahip. (kaggle'da şöyle yazmışlar: if the account is closed then 1 else 0)
 # Customer_Age: müşterinin yaşı
@@ -113,7 +76,7 @@ def grab_col_names(dataframe, cat_th=9, car_th=20):
     print(f"cat_but_car: {len(cat_but_car)}")
     print(f"num_but_car: {len(num_but_cat)}")
     return cat_cols, num_cols, cat_but_car
-
+cat_cols, num_cols, cat_but_car = grab_col_names(df)
 def outlier_thresholds(dataframe, col_name, q1=0.05, q3=0.95):
     quartile1 = dataframe[col_name].quantile(q1)
     quartile3 = dataframe[col_name].quantile(q3)
@@ -121,14 +84,12 @@ def outlier_thresholds(dataframe, col_name, q1=0.05, q3=0.95):
     up_limit = quartile3 + 1.5 * interquantile_range
     low_limit = quartile1 - 1.5 * interquantile_range
     return low_limit, up_limit
-
 def check_outlier(dataframe, col_name):
     low_limit, up_limit = outlier_thresholds(dataframe, col_name)
     if dataframe[(dataframe[col_name] > up_limit) | (dataframe[col_name] < low_limit)].any(axis=None):
         return True
     else:
         return False
-
 def grab_outliers(dataframe, col_name, index=False):
     low, up = outlier_thresholds(dataframe, col_name)
     print(dataframe[((dataframe[col_name] < low) | (dataframe[col_name] > up))].shape[0])
@@ -140,12 +101,10 @@ def grab_outliers(dataframe, col_name, index=False):
     if index:
         outlier_index = dataframe[((dataframe[col_name] < low) | (dataframe[col_name] > up))].index
         return outlier_index
-
 def replace_with_thresholds(dataframe, variable):
     low_limit, up_limit = outlier_thresholds(dataframe, variable)
     dataframe.loc[(dataframe[variable] < low_limit), variable] = low_limit
     dataframe.loc[(dataframe[variable] > up_limit), variable] = up_limit
-
 def cat_summary(dataframe, col_name, plot=False):
     print(pd.DataFrame({col_name: dataframe[col_name].value_counts(),
                         "Ratio": 100 * dataframe[col_name].value_counts() / len(dataframe)}))
@@ -153,7 +112,6 @@ def cat_summary(dataframe, col_name, plot=False):
     if plot:
         sns.countplot(x=dataframe[col_name], data=dataframe)
         plt.show(block=True)
-
 def num_summary(dataframe, numerical_col, plot=False):
     quantiles = [0.05, 0.10, 0.20, 0.30, 0.40, 0.50, 0.60, 0.70, 0.80, 0.90, 0.95, 0.99]
     print(dataframe[numerical_col].describe(quantiles).T)
@@ -163,31 +121,24 @@ def num_summary(dataframe, numerical_col, plot=False):
         plt.xlabel(numerical_col)
         plt.title(numerical_col)
         plt.show(block=True)
-
 def one_hot_encoder(dataframe, categorical_cols, drop_first=True):
     dataframe = pd.get_dummies(dataframe, columns=categorical_cols, drop_first=drop_first, dtype=int)
     return dataframe
 
+
 df.drop(["Naive_Bayes_Classifier_Attrition_Flag_Card_Category_Contacts_Count_12_mon_Dependent_count_Education_Level_Months_Inactive_12_mon_1",
          "Naive_Bayes_Classifier_Attrition_Flag_Card_Category_Contacts_Count_12_mon_Dependent_count_Education_Level_Months_Inactive_12_mon_2"], inplace=True, axis=1)
 
-df.info()
 
-cat_cols, num_cols, cat_but_car = grab_col_names(df)
 
-cat_cols
-
-num_cols
-
-df.nunique()
-
+# Değişkenlerin özet grafikleri
 for col in num_cols:
     num_summary(df, col, plot=True)
 
 for col in cat_cols:
     cat_summary(df, col, plot=True)
 
-df.head()
+
 
 # Base model
 df = one_hot_encoder(df, cat_cols, drop_first=True)
@@ -197,9 +148,6 @@ df.shape
 scaler = StandardScaler()
 df_scaled = scaler.fit_transform(df[num_cols])
 df[num_cols] = pd.DataFrame(df_scaled, columns=df[num_cols].columns)
-
-df.head()
-
 
 y = df["Attrition_Flag_Existing Customer"]
 X = df.drop(["Attrition_Flag_Existing Customer", "CLIENTNUM"], axis=1)
@@ -225,24 +173,9 @@ def base_models(X, y, scoring="accuracy"):
         print(f"{scoring}: {round(cv_results['test_score'].mean(), 4)} ({name}) ")
 
 
-base_models(X, y, scoring="accuracy")
+base_models(X, y)
 
-
-
-
-X_train, X_test, y_train, y_test = train_test_split(X,
-                                                    y,
-                                                    test_size=0.20, random_state=42)
-log_model = LogisticRegression().fit(X_train, y_train)
-
-y_pred = log_model.predict(X_test)
-y_prob = log_model.predict_proba(X_test)[:, 1]
-
-print(classification_report(y_test, y_pred))
-
-df.head()
-#33333333333333333333333333333333333333333333333333333333333333333
-
+#########################################################################################################################
 df = pd.read_csv("BankChurners.csv")
 
 df.drop(["Naive_Bayes_Classifier_Attrition_Flag_Card_Category_Contacts_Count_12_mon_Dependent_count_Education_Level_Months_Inactive_12_mon_1",
@@ -253,12 +186,9 @@ cat_cols, num_cols, cat_but_car = grab_col_names(df)
 df[cat_cols].head(20)
 
 # Bağımlı değişkenimizin ismini target yapalım
-#df["Target"] = df["Attrition_Flag"]
-#df["Target"].unique()
-#df.head()
-# df.drop("Attrition_Flag", axis=1, inplace=True)
 df.rename(columns={"Attrition_Flag":"Target"}, inplace=True)
 
+# ID kolonunda duplicate bakıp, sonra bu değişkeni silme
 df["CLIENTNUM"].nunique() # 10127 - yani duplicate yok id'de
 df.drop("CLIENTNUM", axis=1, inplace=True)
 
@@ -280,7 +210,8 @@ df["Gender"] = df.apply(lambda x: 1 if (x["Gender"] == "F") else 0, axis=1)
 df["Gender"].unique()
 
 # ordinal encoder
-
+# çalışıyor ama fonksiyonu kullandıktan sonra tüm df'yi yazdırıyor ve burada unknown'lar da encode ediliyor.
+# unknown'ları nan yaptıktan sonra ise fonksiyon hata veriyor  - gizmo
 def ordinal_encoder(dataframe, col):
     edu_cats = ['Uneducated', 'High School', 'College', 'Graduate', 'Post-Graduate', 'Doctorate', 'Unknown']
     income_cats = ['Less than $40K', '$40K - $60K', '$60K - $80K', '$80K - $120K', '$120K +', 'Unknown']
@@ -297,6 +228,11 @@ def ordinal_encoder(dataframe, col):
 
     print(df[col].head(20))
     return df
+
+ordinal_encoder(df,"Education_Level")
+ordinal_encoder(df,"Income_Category")
+
+df.head()
 
 """
 df["Education_Level"].unique()
@@ -340,12 +276,6 @@ dff.head()
 
 
 
-
-
-
-
-
-
 df["Income_Category"].unique()
 
 df.head()
@@ -358,7 +288,7 @@ for col in num_cols:
     print(col)
     grab_outliers(df, col)
 
-
+df.head()
 
 ############################# encode etmeden, IQR yapmadan, sırf num_cols'da LOF
 # LOF - string ile çalışmıyor
@@ -416,7 +346,7 @@ for col in num_cols:
 
 
 
-#yeni değişkenler
+# yeni değişkenler
 df.head()
 
 labels = ['Young', 'Middle Aged', 'Senior']
@@ -601,3 +531,95 @@ df.drop("uti_rate_out_calc", inplace=True, axis=1)
 
 df.head()
 
+
+# smote
+# bunları çalıştırabilmek için base model için hazırladığımız df'i kullandım
+
+# Applying SMOTE to handle imbalance in target variable
+from imblearn.over_sampling import SMOTE
+# SMOTE yöntemini uygulayalım
+sm = SMOTE(random_state=69, sampling_strategy=1.0)
+
+X.head()
+y.head()
+
+X.columns
+
+# SMOTE yöntemini uygulayalım
+sm = SMOTE(random_state=69, sampling_strategy=1.0)
+X_resampled, y_resampled = sm.fit_resample(X, y)
+
+# Yeni örnekleme sonuçlarını kullanarak bir DataFrame oluşturalım (isteğe bağlı)
+resampled_df = pd.DataFrame(X_resampled, columns=X.columns)
+resampled_df["Attrition_Flag_Existing Customer"] = y_resampled
+
+# Sonuçları inceleyelim
+print("Orjinal veri çerçevesi boyutu:", df.shape) # Orjinal veri çerçevesi boyutu: (10127, 52)
+print("Yeniden örnekleme sonrası veri çerçevesi boyutu:", resampled_df.shape) # Yeniden örnekleme sonrası veri çerçevesi boyutu: (17000, 51)
+
+
+resampled_df["Attrition_Flag_Existing Customer"].value_counts()
+# Attrition_Flag_Existing Customer
+# 1    8500
+# 0    8500
+
+# kitaptaki smote
+from collections import Counter
+from sklearn.datasets import make_classification
+from imblearn.over_sampling import SMOTE
+from matplotlib import pyplot
+from numpy import where
+
+counter = Counter(y)
+print(counter)
+
+# transform the dataset
+oversample = SMOTE()
+X, y = oversample.fit_resample(X, y)
+# summarize the new class distribution
+counter = Counter(y)
+print(counter)
+
+
+
+# kaggle'da biri şöyle yapmış
+# Applying SMOTE to handle imbalance in target variable
+
+sm = SMOTE(random_state = 69, sampling_strategy = 1.0)
+
+X_train, y_train = sm.fit_resample(X_train, y_train)
+
+
+# Cost sensitive learning
+
+# Weighted Logistic Regression
+from numpy import mean
+from sklearn.datasets import make_classification
+from sklearn.model_selection import cross_val_score
+from sklearn.model_selection import RepeatedStratifiedKFold
+# define model
+weights = {0:0.01, 1:1.0}
+model = LogisticRegression(solver='lbfgs', class_weight=weights)
+# define evaluation procedure
+cv = RepeatedStratifiedKFold(n_splits=10, n_repeats=3, random_state=1)
+# evaluate model
+scores = cross_val_score(model, X, y, scoring='roc_auc', cv=cv, n_jobs=-1)
+# summarize performance
+print('Mean ROC AUC: %.3f' % mean(scores))
+# Mean ROC AUC: 0.911
+
+
+
+# confusion matrix
+def plot_confusion_matrix(y, y_pred):
+    acc = round(accuracy_score(y, y_pred), 2)
+    cm = confusion_matrix(y, y_pred)
+    sns.heatmap(cm, annot=True, fmt=".0f")
+    plt.xlabel('y_pred')
+    plt.ylabel('y')
+    plt.title('Accuracy Score: {0}'.format(acc), size=10)
+    plt.show()
+
+plot_confusion_matrix(y, y_pred)
+
+print(classification_report(y, y_pred))
