@@ -154,6 +154,10 @@ X = df.drop(["Attrition_Flag_Existing Customer", "CLIENTNUM"], axis=1)
 
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
+# sm = SMOTE(random_state=69, sampling_strategy=1.0)
+#
+# X_train, y_train = sm.fit_resample(X_train, y_train)
+
 def base_models(X, y, scoring="accuracy"):
     print("Base Models....")
     classifiers = [('LR', LogisticRegression()),
@@ -210,11 +214,9 @@ df["Gender"] = df.apply(lambda x: 1 if (x["Gender"] == "F") else 0, axis=1)
 df["Gender"].unique()
 
 # ordinal encoder
-# çalışıyor ama fonksiyonu kullandıktan sonra tüm df'yi yazdırıyor ve burada unknown'lar da encode ediliyor.
-# unknown'ları nan yaptıktan sonra ise fonksiyon hata veriyor  - gizmo
 def ordinal_encoder(dataframe, col):
-    edu_cats = ['Uneducated', 'High School', 'College', 'Graduate', 'Post-Graduate', 'Doctorate', 'Unknown']
-    income_cats = ['Less than $40K', '$40K - $60K', '$60K - $80K', '$80K - $120K', '$120K +', 'Unknown']
+    edu_cats = ['Uneducated', 'High School', 'College', 'Graduate', 'Post-Graduate', 'Doctorate', np.nan]
+    income_cats = ['Less than $40K', '$40K - $60K', '$60K - $80K', '$80K - $120K', '$120K +', np.nan]
     col_cats = []
 
     if col is "Education_Level":
@@ -229,36 +231,8 @@ def ordinal_encoder(dataframe, col):
     print(df[col].head(20))
     return df
 
-ordinal_encoder(df,"Education_Level")
-ordinal_encoder(df,"Income_Category")
-
-df.head()
-
-"""
-df["Education_Level"].unique()
-cats = ['Uneducated', 'High School', 'College', 'Graduate', 'Post-Graduate', 'Doctorate', 'Unknown']
-category_codes = [0, 1, 2, 3, 4, 5, 6]
-ordinal_encoder = OrdinalEncoder(categories=[cats])
-df["Education_Level"] = ordinal_encoder.fit_transform(df[['Education_Level']])
-
-
-from sklearn.preprocessing import OrdinalEncoder
-income_cats = ['Less than $40K', '$40K - $60K', '$60K - $80K', '$80K - $120K', '$120K +', 'Unknown']
-income_codes = [0, 1, 2, 3, 4, 5]
-
-ordinal_encoder = OrdinalEncoder(categories=[income_cats])
-df["Income_Category"] = ordinal_encoder.fit_transform(df[['Income_Category']])
-
-df["Income_Category"].head(20)
-
-df["Income_Category"].value_counts()
-df["Income_Category"].isnull().sum() # 1112
-# 0.000    3561
-# 1.000    1790
-# 3.000    1535
-# 2.000    1402
-# 4.000     727
-"""
+df = ordinal_encoder(df,"Education_Level")
+df = ordinal_encoder(df,"Income_Category")
 
 # knn'in uygulanması. knn komşuların ortalamasıyla doldurur
 dff = df.copy()
@@ -266,19 +240,8 @@ from sklearn.impute import KNNImputer
 imputer = KNNImputer(n_neighbors=1)
 dff["Income_Category"] = pd.DataFrame(imputer.fit_transform(dff["Income_Category"]), columns=dff.columns)
 #dff["Income_Category"] = pd.DataFrame(imputer.fit_transform(dff["Income_Category"]))
-dff.head()
-
 
 dff = pd.DataFrame(imputer.fit_transform(dff), columns=dff.columns)
-dff.head()
-
-
-
-
-
-df["Income_Category"].unique()
-
-df.head()
 
 cat_cols, num_cols, cat_but_car = grab_col_names(df)
 
@@ -337,15 +300,6 @@ for col in num_cols:
     replace_with_thresholds(df, col)
 
 
-
-
-
-# ağaç yöntemlerinde çok dokunulmanması öneriliyor, en kötü ucundan dokunulması gerek
-
-
-
-
-
 # yeni değişkenler
 df.head()
 
@@ -354,7 +308,6 @@ bins = [25, 35, 55, 74]
 df['Customer_Age_Category'] = pd.cut(df['Customer_Age'], bins=bins, labels=labels)
 
 df.groupby("Card_Category")["Customer_Age_Category"].count()
-
 
 # kart grubunda yaş kategorilerine bakma
 count_by_card_age_category = df.groupby("Card_Category")["Customer_Age_Category"].value_counts()
@@ -380,6 +333,27 @@ percentage_by_card_target_age_category = count_by_card_target_age_category.div(t
 print("Percentage by Target:")
 print(percentage_by_card_target_age_category)
 
+# churn etme olasılıkları, kart kategrisi ve yaş grubu kırılımında
+count_by_credit_limit = df.groupby(["Card_Category", "Customer_Age_Category"])["Target"].mean()
+# Blue           Young                   0.132
+#                Middle Aged             0.165
+#                Senior                  0.159
+# Gold           Young                   0.300
+#                Middle Aged             0.170
+#                Senior                  0.167
+# Platinum       Young                     NaN
+#                Middle Aged             0.263
+#                Senior                  0.000
+# Silver         Young                   0.118
+#                Middle Aged             0.152
+#                Senior                  0.140
+
+
+count_by_credit_limit = df.groupby(["Card_Category"])["Target"].mean()
+# TODO Plat olanların %25'i churn etmiş
+
+count_by_credit_limit = df.groupby(["Target"])["Card_Category"].value_counts()
+# TODO (oversampling sonrası değişebilir) gold ve plat rare encoder ile birleştirilebilir.
 
 # Kart grubu kırılımında limit
 count_by_credit_limit = df.groupby("Card_Category")["Credit_Limit"].mean()
@@ -387,14 +361,13 @@ count_by_credit_limit = df.groupby("Card_Category")["Credit_Limit"].mean()
 # Kart grubu kırılımında limit ve target
 count_by_credit_limit = df.groupby(["Card_Category", "Target"])["Credit_Limit"].mean()
 
-
 # Medeni durumun kırılımında bakmakla yükümlü olunan insan sayısı analizi
 marital_status_dependents = df.groupby("Marital_Status")["Dependent_count"].mean()
 
 # Dependent kırılımında kredi limiti analizi
 df["Dependent_count"].value_counts()
 dependent_count_credit_limit = df.groupby("Dependent_count")["Credit_Limit"].mean()
-
+# TODO dependent sayısı arttıkça limit artıyor
 
 # Müşterinin kaldığı ay sayısı ve kart kategorisi
 months_on_book_card_category = df.groupby("Card_Category")["Months_on_book"].mean()
@@ -410,6 +383,23 @@ education_card_category = df.groupby("Education_Level")["Card_Category"].value_c
 df["Contacts_Count_12_mon"].value_counts()
 
 contacts_target = df.groupby("Target")["Contacts_Count_12_mon"].value_counts()
+df.groupby("Target")["Contacts_Count_12_mon"].count() / (len(df["Target"]))
+
+
+# Target'e göre Contacts_Count_12_mon oranları
+total_counts = df.groupby("Target")["Contacts_Count_12_mon"].count()
+grouped_counts = df.groupby(["Target", "Contacts_Count_12_mon"]).size()
+ratios = grouped_counts *100 / total_counts
+print(ratios)
+"""
+1       0                        0.430
+        1                        6.638
+        2                       24.770
+        3                       41.856 # TODO
+        4                       19.361
+        5                        3.626
+        6                        3.319
+"""
 
 
 # Hedef değişkenine göre Contacts_Count_12_mon değerlerinin yüzdelerini hesaplayalım
@@ -423,12 +413,15 @@ print(percentage_by_target_contacts)
 
 # Hedef değişkenine göre Avg_Utilization_Ratio sütununun ortalama değerlerini hesaplayalım
 mean_by_target_ratio = df.groupby("Target")["Avg_Utilization_Ratio"].mean()
-# churn edenlerin borç ortalaması daha azmış
+# TODO churn edenlerin borç ortalaması daha azmış
+# borç ödemeleri daha kolay -- borç/limit oranı daha küçük. daha ödenebilir krediler çekilmiş.
+# çektiği kredi, maaşına(limite) oranla daha fazla olanlar, bankaya ödeme yapmaya devam ettikleri için bankayı terk edemiyor olabilirler mi??
 
+
+df.head()
 
 # Gelir grubu ve target kırılımında limit analizi
 income_cat_target_credit_limit = df.groupby(["Target","Income_Category" ])["Income_Category"].count()
-
 
 
 # Gelir kategorileri 0 olan hedef değişkeni için sayıları hesaplayalım
@@ -463,9 +456,6 @@ result = pd.DataFrame({"Count_Target_1": count_1_target_income, "Percentage_Targ
 # Sonucu ekrana yazdıralım
 print(result)
 
-# anlamlı bir şey çıkmadı
-
-df.head()
 
 # Cinsiyet ve target analizi
 gender_target = df.groupby("Gender")["Target"].mean()
@@ -481,6 +471,20 @@ df["FrequencyScore"] = pd.qcut(df["Total_Trans_Ct"], 5, labels=[1, 2, 3, 4, 5])
 
 df["FrequencyScore"].value_counts()
 df["MonetaryScore"].value_counts()
+df.groupby("FrequencyScore")["Target"].mean()
+df.groupby("MonetaryScore")["Income_Category"].mean()
+df.groupby("Income_Category")["Avg_Utilization_Ratio"].mean()
+df.groupby(["Income_Category", "MonetaryScore"])["Target"].mean()
+
+"""
+MonetaryScore
+1   0.204
+2   0.439
+3   0.008
+4   0.022
+5   0.130
+"""
+
 
 
 # Total_Ct_Chng_Q4_Q1: Change in Transaction Count (Q4 over Q1)
@@ -491,7 +495,6 @@ df["MonetaryScore"].value_counts()
 
 df["Total_Ct_Chng_Q4_Q1"].describe().T
 df["Total_Amt_Chng_Q4_Q1"].describe().T
-
 
 df['Total_Amt_Increased'] = np.where((df['Total_Amt_Chng_Q4_Q1'] > 0) & (df['Total_Amt_Chng_Q4_Q1'] < 1), 0, 1)
 # 0: Q1'in fazla oldukları
@@ -509,7 +512,7 @@ amt_target = df.groupby("Total_Amt_Increased")["Target"].mean()
 df.head()
 
 
-# tatol_revolving_bal / credit_limit = Avg_Utilization_Ratio?
+# total_revolving_bal / credit_limit = Avg_Utilization_Ratio?
 
 df["uti_rate_out_calc"] =  df["Total_Revolving_Bal"] / df["Credit_Limit"]
 
@@ -570,6 +573,11 @@ from imblearn.over_sampling import SMOTE
 from matplotlib import pyplot
 from numpy import where
 
+y = df["Target"]
+X = df.drop(["Target", "CLIENTNUM"], axis=1)
+
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
 counter = Counter(y)
 print(counter)
 
@@ -585,20 +593,19 @@ print(counter)
 # kaggle'da biri şöyle yapmış
 # Applying SMOTE to handle imbalance in target variable
 
-sm = SMOTE(random_state = 69, sampling_strategy = 1.0)
+sm = SMOTE(random_state=69, sampling_strategy=1.0)
 
 X_train, y_train = sm.fit_resample(X_train, y_train)
 
 
 # Cost sensitive learning
-
 # Weighted Logistic Regression
 from numpy import mean
 from sklearn.datasets import make_classification
 from sklearn.model_selection import cross_val_score
 from sklearn.model_selection import RepeatedStratifiedKFold
 # define model
-weights = {0:0.01, 1:1.0}
+weights = {0: 0.01, 1: 1.0}
 model = LogisticRegression(solver='lbfgs', class_weight=weights)
 # define evaluation procedure
 cv = RepeatedStratifiedKFold(n_splits=10, n_repeats=3, random_state=1)
