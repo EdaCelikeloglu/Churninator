@@ -266,6 +266,11 @@ df.drop("CLIENTNUM", axis=1, inplace=True)
 
 cat_cols, num_cols, cat_but_car = grab_col_names(df)
 
+# NaN işlemleri
+cols_with_unknown = ['Income_Category', "Marital_Status", "Education_Level"]
+for col in cols_with_unknown:
+    df[col] = df[col].apply(lambda x: np.nan if x == 'Unknown' else x)
+
 # Encoding işlemleri
 df["Target"] = df.apply(lambda x: 0 if (x["Target"] == "Existing Customer") else 1, axis=1)
 
@@ -277,65 +282,40 @@ df["Gender"] = df.apply(lambda x: 1 if (x["Gender"] == "F") else 0, axis=1)
 df["Gender"].unique()
 
 # ordinal encoder
-# Education_Level
-from sklearn.preprocessing import OrdinalEncoder
-
-###
 
 def ordinal_encoder(dataframe, col):
-                             if col is "Education_Level":
-                                                          col_cats = ['Uneducated', 'High School', 'College', 'Graduate', 'Post-Graduate', 'Doctorate', 'Unknown']
-                             if col is :
-                                                          
-                             cat_codes = range(0, len(col_cats))
-                             ordinal_encoder = OrdinalEncoder(categories=[col_cats])
-                             df[col] = ordinal_encoder.fit_transform(df[[col]])
+    edu_cats = ['Uneducated', 'High School', 'College', 'Graduate', 'Post-Graduate', 'Doctorate', 'Unknown']
+    income_cats = ['Less than $40K', '$40K - $60K', '$60K - $80K', '$80K - $120K', '$120K +', 'Unknown']
+    col_cats = []
 
-                             return df
+    if col is "Education_Level":
+        col_cats = edu_cats
+    if col is "Income_Category":
+        col_cats = income_cats
 
-####
+    # cat_codes = range(0, len(col_cats)) # buna ihtiyaç var mı? sanki kendisi rakamları veriyor gibi.
+    ordinal_encoder = OrdinalEncoder(categories=[col_cats])
+    df[col] = ordinal_encoder.fit_transform(df[[col]])
 
+    print(df[col].head(20))
+    return df
+
+"""
 df["Education_Level"].unique()
 cats = ['Uneducated', 'High School', 'College', 'Graduate', 'Post-Graduate', 'Doctorate', 'Unknown']
 category_codes = [0, 1, 2, 3, 4, 5, 6]
-
-df["Education_Level"].head()
-
 ordinal_encoder = OrdinalEncoder(categories=[cats])
 df["Education_Level"] = ordinal_encoder.fit_transform(df[['Education_Level']])
 
-df["Education_Level"].head(20)
-
-df.head()
-
-
-
-df["Income_Category"].value_counts()
-
-df["Income_Category"].unique()
-
-cols_with_unknown = ['Income_Category', "Marital_Status", "Education_Level"]
-for col in cols_with_unknown:
-    df[col] = df[col].apply(lambda x: np.nan if x == 'Unknown' else x)
-
-
 
 from sklearn.preprocessing import OrdinalEncoder
-
-
 income_cats = ['Less than $40K', '$40K - $60K', '$60K - $80K', '$80K - $120K', '$120K +', 'Unknown']
 income_codes = [0, 1, 2, 3, 4, 5]
-
-df["Income_Category"].head()
 
 ordinal_encoder = OrdinalEncoder(categories=[income_cats])
 df["Income_Category"] = ordinal_encoder.fit_transform(df[['Income_Category']])
 
 df["Income_Category"].head(20)
-
-df.head()
-
-df["Income_Category"].unique()
 
 df["Income_Category"].value_counts()
 df["Income_Category"].isnull().sum() # 1112
@@ -344,6 +324,7 @@ df["Income_Category"].isnull().sum() # 1112
 # 3.000    1535
 # 2.000    1402
 # 4.000     727
+"""
 
 # knn'in uygulanması. knn komşuların ortalamasıyla doldurur
 dff = df.copy()
