@@ -85,13 +85,13 @@ df.columns
 # Total_Revolving_Bal: devir bakiyesi (Bu terim, müşterinin ödeme yapması gereken ancak henüz ödenmemiş olan borç
 # #                     miktarını ifade eder. Yani, müşterinin kredi kartı hesabında biriken ve henüz ödenmemiş olan borç tutarıdır.)
 # Avg_Open_To_Buy:  müşterinin ulaşabileceği maksimum kredi miktarının son 12 aydaki ortalaması
-# Total_Amt_Chng_Q4_Q1: transaction sayısındaki 4. çeyrek ve 1. çeyrek arasındaki fark
+# Total_Amt_Chng_Q4_Q1: Change in Transaction Amount (Q4 over Q1)
 # Total_Trans_Amt: son 12 aydaki tüm transaction'lardan gelen miktar
 # Total_Trans_Ct: son 12 aydaki toplam transaction sayısı
-# Total_Ct_Chng_Q4_Q1: transaction miktarlarının 4. çeyrek ve 1. çeyrek arasındaki fark
+# Total_Ct_Chng_Q4_Q1: Change in Transaction Count (Q4 over Q1)
 # Avg_Utilization_Ratio: müşterinin mevcut kredi kartı borçlarının kredi limitine oranını ifade eder
 
-#fonksiyonlarımız
+# Fonksiyonlarımız
 def grab_col_names(dataframe, cat_th=9, car_th=20):
     #cat_cols, cat_but_car
     cat_cols = [col for col in dataframe.columns if dataframe[col].dtypes == "O"]
@@ -191,12 +191,10 @@ df.head()
 
 # Base model
 df = one_hot_encoder(df, cat_cols, drop_first=True)
-
 df.head()
 df.shape
 
 scaler = StandardScaler()
-
 df_scaled = scaler.fit_transform(df[num_cols])
 df[num_cols] = pd.DataFrame(df_scaled, columns=df[num_cols].columns)
 
@@ -220,7 +218,7 @@ def base_models(X, y, scoring="accuracy"):
                    ('XGBoost', XGBClassifier(use_label_encoder=False, eval_metric='logloss')),
                    ('LightGBM', LGBMClassifier()),
                    # ('CatBoost', CatBoostClassifier(verbose=False))
-                   ]
+                    ]
 
     for name, classifier in classifiers:
         cv_results = cross_validate(classifier, X, y, cv=10, scoring=scoring)
@@ -418,4 +416,188 @@ for col in num_cols:
 
 
 
-############################# encode ettikten sonra LOF
+#yeni değişkenler
+df.head()
+
+labels = ['Young', 'Middle Aged', 'Senior']
+bins = [25, 35, 55, 74]
+df['Customer_Age_Category'] = pd.cut(df['Customer_Age'], bins=bins, labels=labels)
+
+df.groupby("Card_Category")["Customer_Age_Category"].count()
+
+
+# kart grubunda yaş kategorilerine bakma
+count_by_card_age_category = df.groupby("Card_Category")["Customer_Age_Category"].value_counts()
+
+
+total_counts_by_card = df.groupby("Card_Category")["Customer_Age_Category"].count()
+percentage_by_card_age_category = count_by_card_age_category.div(total_counts_by_card, level='Card_Category') * 100
+print("Count:")
+print(count_by_card_age_category)
+print("\nPercentage:")
+print(percentage_by_card_age_category)
+
+# Kart grubu kırılımında target
+count_by_card_target_age_category = df.groupby(["Card_Category", "Target"])["Customer_Age_Category"].value_counts().unstack(fill_value=0)
+total_counts_by_card_target = df.groupby(["Card_Category", "Target"])["Customer_Age_Category"].count().unstack(fill_value=0)
+print("Count:")
+print(count_by_card_target_age_category)
+
+
+# Yüzdelikli bakış
+# Hedef değişkenin yüzdelerini hesaplayalım
+percentage_by_card_target_age_category = count_by_card_target_age_category.div(total_counts_by_card_target.sum(axis=1), axis=0) * 100
+print("Percentage by Target:")
+print(percentage_by_card_target_age_category)
+
+
+# Kart grubu kırılımında limit
+count_by_credit_limit = df.groupby("Card_Category")["Credit_Limit"].mean()
+
+# Kart grubu kırılımında limit ve target
+count_by_credit_limit = df.groupby(["Card_Category", "Target"])["Credit_Limit"].mean()
+
+
+# Medeni durumun kırılımında bakmakla yükümlü olunan insan sayısı analizi
+marital_status_dependents = df.groupby("Marital_Status")["Dependent_count"].mean()
+
+# Dependent kırılımında kredi limiti analizi
+df["Dependent_count"].value_counts()
+dependent_count_credit_limit = df.groupby("Dependent_count")["Credit_Limit"].mean()
+
+
+# Müşterinin kaldığı ay sayısı ve kart kategorisi
+months_on_book_card_category = df.groupby("Card_Category")["Months_on_book"].mean()
+# Anlamlı bir sonuç çıkmadı
+
+
+# Eğitim ve kart kategorisi analizi
+df["Education_Level"].value_counts()
+education_card_category = df.groupby("Education_Level")["Card_Category"].value_counts()
+
+
+# Müşteriyle iletişime geçme ve target
+df["Contacts_Count_12_mon"].value_counts()
+
+contacts_target = df.groupby("Target")["Contacts_Count_12_mon"].value_counts()
+
+
+# Hedef değişkenine göre Contacts_Count_12_mon değerlerinin yüzdelerini hesaplayalım
+percentage_by_target_contacts = df.groupby("Target")["Contacts_Count_12_mon"].value_counts(normalize=True).mul(100)
+
+# Sonucu ekrana yazdıralım
+print("Percentage by Target and Contacts_Count_12_mon:")
+print(percentage_by_target_contacts)
+
+# Utilization ratio ve target analizi
+
+# Hedef değişkenine göre Avg_Utilization_Ratio sütununun ortalama değerlerini hesaplayalım
+mean_by_target_ratio = df.groupby("Target")["Avg_Utilization_Ratio"].mean()
+# churn edenlerin borç ortalaması daha azmış
+
+
+# Gelir grubu ve target kırılımında limit analizi
+income_cat_target_credit_limit = df.groupby(["Target","Income_Category" ])["Income_Category"].count()
+
+
+
+# Gelir kategorileri 0 olan hedef değişkeni için sayıları hesaplayalım
+count_by_income_target = df.groupby(["Income_Category", "Target"])["Income_Category"].count().unstack(fill_value=0)
+
+# 0 hedef değişkeni için gelir kategorilerinin sayılarını alalım
+count_0_target_income = count_by_income_target[0]
+
+# 0 hedef değişkeni için gelir kategorilerinin yüzdelerini hesaplayalım
+percentage_0_target_income = count_0_target_income / count_0_target_income.sum() * 100
+
+# Sonucu birleştirelim
+result = pd.DataFrame({"Count_Target_0": count_0_target_income, "Percentage_Target_0": percentage_0_target_income})
+
+# Sonucu ekrana yazdıralım
+print(result)
+
+
+# Gelir kategorileri 1 olan hedef değişkeni için sayıları hesaplayalım
+# Gelir kategorileri için hem 0 hem de 1 hedef değişkeni için sayıları hesaplayalım
+count_by_income_target = df.groupby(["Income_Category", "Target"])["Income_Category"].count().unstack(fill_value=0)
+
+# 1 hedef değişkeni için gelir kategorilerinin sayılarını alalım
+count_1_target_income = count_by_income_target[1]
+
+# 1 hedef değişkeni için gelir kategorilerinin yüzdelerini hesaplayalım
+percentage_1_target_income = count_1_target_income / count_1_target_income.sum() * 100
+
+# Sonucu birleştirelim
+result = pd.DataFrame({"Count_Target_1": count_1_target_income, "Percentage_Target_1": percentage_1_target_income})
+
+# Sonucu ekrana yazdıralım
+print(result)
+
+# anlamlı bir şey çıkmadı
+
+df.head()
+
+# Cinsiyet ve target analizi
+gender_target = df.groupby("Gender")["Target"].mean()
+
+
+# FM analizi (FM skorları hesaplama)
+# Total_Trans_Amt: son 12 aydaki tüm transaction'lardan gelen miktar
+# Total_Trans_Ct: son 12 aydaki toplam transaction sayısı
+
+# Frequency
+df["MonetaryScore"] = pd.qcut(df["Total_Trans_Amt"], 5, labels=[1, 2, 3, 4, 5])
+df["FrequencyScore"] = pd.qcut(df["Total_Trans_Ct"], 5, labels=[1, 2, 3, 4, 5])
+
+df["FrequencyScore"].value_counts()
+df["MonetaryScore"].value_counts()
+
+
+# Total_Ct_Chng_Q4_Q1: Change in Transaction Count (Q4 over Q1)
+# Total_Amt_Chng_Q4_Q1: Change in Transaction Amount (Q4 over Q1)
+
+# Çeyreklik farklılıklar arasındaki farkların analizi. oran olduğu için 1'i threshold olarak belirleyip yeni bir kategorik
+# Değişken oluşturacağız
+
+df["Total_Ct_Chng_Q4_Q1"].describe().T
+df["Total_Amt_Chng_Q4_Q1"].describe().T
+
+
+df['Total_Amt_Increased'] = np.where((df['Total_Amt_Chng_Q4_Q1'] > 0) & (df['Total_Amt_Chng_Q4_Q1'] < 1), 0, 1)
+# 0: Q1'in fazla oldukları
+# 1: Q4'ün fazla oldukları
+
+df['Total_Ct_Increased'] = np.where((df['Total_Ct_Chng_Q4_Q1'] > 0) & (df['Total_Ct_Chng_Q4_Q1'] < 1), 0, 1)
+
+df['Total_Amt_Increased'].value_counts()
+df['Total_Ct_Increased'].value_counts()
+
+# bu yeni değişkenlerin target ile analizi
+ct_target = df.groupby("Total_Ct_Increased")["Target"].mean()
+amt_target = df.groupby("Total_Amt_Increased")["Target"].mean()
+
+df.head()
+
+
+# tatol_revolving_bal / credit_limit = Avg_Utilization_Ratio?
+
+df["uti_rate_out_calc"] =  df["Total_Revolving_Bal"] / df["Credit_Limit"]
+
+df[["Avg_Utilization_Ratio",  "uti_rate_out_calc"]].head(20)
+
+
+
+
+a = df["uti_rate_out_calc"] == df["Avg_Utilization_Ratio"]
+
+a.head(20)
+
+
+
+result = df["Avg_Utilization_Ratio"].equals(df["Total_Revolving_Bal"] / df["Credit_Limit"])
+# bu false çıktı ama virgül sonrası sebebiyle  bu yüzden bu değişkenin anlamlı olmayacağına karar verdik
+
+df.drop("uti_rate_out_calc", inplace=True, axis=1)
+
+df.head()
+
