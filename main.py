@@ -813,7 +813,7 @@ max_depth: [3, 5, 7, 10]"""
 df.shape
 
 rf_params = {"max_depth": [5, 10, 15, None],
-             "max_features": [int(np.sqrt(df.shape[1])), int(np.log2(df.shape[1])), 0.5],
+             #"max_features": [2, 4, 8, 16, 30],
              "min_samples_split": [2, 5, 10],
              "n_estimators": [50, 100, 200, 300]}
 
@@ -838,11 +838,11 @@ catboost_params = {"learning_rate": [0.01, 0.05, 0.1, 0.5],
 classifiers = ([("RF", RandomForestClassifier(), rf_params),
                 ('XGBoost', XGBClassifier(use_label_encoder=False, eval_metric='logloss'), xgboost_params),
                 ('LightGBM', LGBMClassifier(force_col_wise=True), lightgbm_params),
-                ('GBM', GradientBoostingClassifier()),
-                ('CatBoost', CatBoostClassifier(verbose=False))])
+                ('GBM', GradientBoostingClassifier(), gbm_params),
+                ('CatBoost', CatBoostClassifier(verbose=False)), catboost_params])
 
 
-def hyperparameter_optimization(X_train, y_train, X_test, y_test, cv=10, scoring="roc_auc"):
+def hyperparameter_optimization(X_train, y_train, X_test, y_test, cv=3, scoring="roc_auc"):
     print("Hyperparameter Optimization....")
     best_models = {}
     for name, classifier, params in classifiers:
