@@ -19,6 +19,13 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 import warnings
+from collections import Counter
+from sklearn.datasets import make_classification
+from imblearn.over_sampling import SMOTE
+from matplotlib import pyplot
+from numpy import where
+from sklearn.metrics import classification_report
+
 
 
 warnings.simplefilter(action="ignore")
@@ -28,7 +35,7 @@ pd.set_option('display.width', 170)
 pd.set_option('display.max_rows', None)
 pd.set_option('display.float_format', lambda x: '%.3f' % x)
 
-df = pd.read_csv("BankChurners.csv")
+base = pd.read_csv("BankChurners.csv")
 
 # CLIENTNUM: müşteri id'si
 # Attrition_Flag: TARGET. Churn etti mi etmedi mi bilgisine sahip. (kaggle'da şöyle yazmışlar: if the account is closed then 1 else 0)
@@ -76,7 +83,10 @@ def grab_col_names(dataframe, cat_th=9, car_th=20):
     print(f"cat_but_car: {len(cat_but_car)}")
     print(f"num_but_car: {len(num_but_cat)}")
     return cat_cols, num_cols, cat_but_car
-cat_cols, num_cols, cat_but_car = grab_col_names(df)
+
+
+cat_cols, num_cols, cat_but_car = grab_col_names(base)
+
 def outlier_thresholds(dataframe, col_name, q1=0.05, q3=0.95):
     quartile1 = dataframe[col_name].quantile(q1)
     quartile3 = dataframe[col_name].quantile(q3)
@@ -84,12 +94,16 @@ def outlier_thresholds(dataframe, col_name, q1=0.05, q3=0.95):
     up_limit = quartile3 + 1.5 * interquantile_range
     low_limit = quartile1 - 1.5 * interquantile_range
     return low_limit, up_limit
+
+
 def check_outlier(dataframe, col_name):
     low_limit, up_limit = outlier_thresholds(dataframe, col_name)
     if dataframe[(dataframe[col_name] > up_limit) | (dataframe[col_name] < low_limit)].any(axis=None):
         return True
     else:
         return False
+
+
 def grab_outliers(dataframe, col_name, index=False):
     low, up = outlier_thresholds(dataframe, col_name)
     print(dataframe[((dataframe[col_name] < low) | (dataframe[col_name] > up))].shape[0])
@@ -101,10 +115,14 @@ def grab_outliers(dataframe, col_name, index=False):
     if index:
         outlier_index = dataframe[((dataframe[col_name] < low) | (dataframe[col_name] > up))].index
         return outlier_index
+
+
 def replace_with_thresholds(dataframe, variable):
     low_limit, up_limit = outlier_thresholds(dataframe, variable)
     dataframe.loc[(dataframe[variable] < low_limit), variable] = low_limit
     dataframe.loc[(dataframe[variable] > up_limit), variable] = up_limit
+
+
 def cat_summary(dataframe, col_name, plot=False):
     print(pd.DataFrame({col_name: dataframe[col_name].value_counts(),
                         "Ratio": 100 * dataframe[col_name].value_counts() / len(dataframe)}))
@@ -112,6 +130,8 @@ def cat_summary(dataframe, col_name, plot=False):
     if plot:
         sns.countplot(x=dataframe[col_name], data=dataframe)
         plt.show(block=True)
+
+
 def num_summary(dataframe, numerical_col, plot=False):
     quantiles = [0.05, 0.10, 0.20, 0.30, 0.40, 0.50, 0.60, 0.70, 0.80, 0.90, 0.95, 0.99]
     print(dataframe[numerical_col].describe(quantiles).T)
@@ -121,44 +141,66 @@ def num_summary(dataframe, numerical_col, plot=False):
         plt.xlabel(numerical_col)
         plt.title(numerical_col)
         plt.show(block=True)
+
+
 def one_hot_encoder(dataframe, categorical_cols, drop_first=True):
     dataframe = pd.get_dummies(dataframe, columns=categorical_cols, drop_first=drop_first, dtype=int)
     return dataframe
 
+base = pd.read_csv("BankChurners.csv")
+base.head()
+base.drop([
+    "Naive_Bayes_Classifier_Attrition_Flag_Card_Category_Contacts_Count_12_mon_Dependent_count_Education_Level_Months_Inactive_12_mon_1",
+    "Naive_Bayes_Classifier_Attrition_Flag_Card_Category_Contacts_Count_12_mon_Dependent_count_Education_Level_Months_Inactive_12_mon_2"],
+    inplace=True, axis=1)
 
-df.drop(["Naive_Bayes_Classifier_Attrition_Flag_Card_Category_Contacts_Count_12_mon_Dependent_count_Education_Level_Months_Inactive_12_mon_1",
-         "Naive_Bayes_Classifier_Attrition_Flag_Card_Category_Contacts_Count_12_mon_Dependent_count_Education_Level_Months_Inactive_12_mon_2"], inplace=True, axis=1)
+# Bağımlı değişkenimizin ismini target yapalım
+base.rename(columns={"Attrition_Flag": "Target"}, inplace=True)
+base["Target"] = base.apply(lambda x: 0 if (x["Target"] == "Existing Customer") else 1, axis=1)
 
+# ID kolonunda duplicate bakıp, sonra bu değişkeni silme
+base["CLIENTNUM"].nunique()  # 10127 - yani duplicate yok id'de
+base.drop("CLIENTNUM", axis=1, inplace=True)
 
+cat_cols, num_cols, cat_but_car = grab_col_names(base)
+cat_cols = [col for col in cat_cols if col not in "Target"]
 
 # Değişkenlerin özet grafikleri
 for col in num_cols:
-    num_summary(df, col, plot=True)
+    num_summary(base, col, plot=True)
 
 for col in cat_cols:
-    cat_summary(df, col, plot=True)
-
-
+    cat_summary(base, col, plot=True)
 
 # Base model
-df = one_hot_encoder(df, cat_cols, drop_first=True)
-df.head()
-df.shape
+base = one_hot_encoder(base, cat_cols, drop_first=True)
+base.head()
+base.shape
+
 
 scaler = StandardScaler()
-df_scaled = scaler.fit_transform(df[num_cols])
-df[num_cols] = pd.DataFrame(df_scaled, columns=df[num_cols].columns)
+base_scaled = scaler.fit_transform(base[num_cols])
+base[num_cols] = pd.DataFrame(base_scaled, columns=base[num_cols].columns)
 
-y = df["Attrition_Flag_Existing Customer"]
-X = df.drop(["Attrition_Flag_Existing Customer", "CLIENTNUM"], axis=1)
+y_base = base["Target"]
+X_base = base.drop("Target", axis=1)
 
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+X_train_base, X_test_base, y_train_base, y_test_base = train_test_split(X_base, y_base, test_size=0.2, random_state=42)
 
-# sm = SMOTE(random_state=69, sampling_strategy=1.0)
-#
-# X_train, y_train = sm.fit_resample(X_train, y_train)
+counter = Counter(y_train_base)
+print(counter)
 
-def base_models(X, y, scoring="accuracy"):
+Counter(y_test_base)
+
+# transform the dataset
+oversample = SMOTE()
+X_train_base, y_train_base = oversample.fit_resample(X_train_base, y_train_base)
+# summarize the new class distribution
+counter = Counter(y_train_base)
+print(counter)
+
+
+def model_metrics(X_train, y_train, X_test, y_test):
     print("Base Models....")
     classifiers = [('LR', LogisticRegression()),
                    ('KNN', KNeighborsClassifier()),
@@ -169,27 +211,136 @@ def base_models(X, y, scoring="accuracy"):
                    ('GBM', GradientBoostingClassifier()),
                    ('XGBoost', XGBClassifier(use_label_encoder=False, eval_metric='logloss')),
                    ('LightGBM', LGBMClassifier()),
-                   # ('CatBoost', CatBoostClassifier(verbose=False))
-                    ]
+                   ('CatBoost', CatBoostClassifier(verbose=False))
+                   ]
 
     for name, classifier in classifiers:
-        cv_results = cross_validate(classifier, X, y, cv=10, scoring=scoring)
-        print(f"{scoring}: {round(cv_results['test_score'].mean(), 4)} ({name}) ")
+        model = classifier.fit(X_train, y_train)
+        y_pred = model.predict(X_test)
+
+        # Classification Report
+        report = classification_report(y_test, y_pred)
+        print(f"Classification Report for {name}:")
+        print(report)
 
 
-base_models(X, y)
+model_metrics(X_train_base, y_train_base, X_test_base, y_test_base)
+"""
+Base Models....
+Classification Report for LR:
+              precision    recall  f1-score   support
+
+           0       0.94      0.95      0.94      1699
+           1       0.70      0.66      0.68       327
+
+    accuracy                           0.90      2026
+   macro avg       0.82      0.80      0.81      2026
+weighted avg       0.90      0.90      0.90      2026
+
+Classification Report for KNN:
+              precision    recall  f1-score   support
+
+           0       0.98      0.81      0.89      1699
+           1       0.48      0.89      0.62       327
+
+    accuracy                           0.83      2026
+   macro avg       0.73      0.85      0.76      2026
+weighted avg       0.90      0.83      0.84      2026
+
+Classification Report for SVC:
+              precision    recall  f1-score   support
+
+           0       0.95      0.97      0.96      1699
+           1       0.83      0.75      0.79       327
+
+    accuracy                           0.93      2026
+   macro avg       0.89      0.86      0.87      2026
+weighted avg       0.93      0.93      0.93      2026
+
+Classification Report for CART:
+              precision    recall  f1-score   support
+
+           0       0.97      0.95      0.96      1699
+           1       0.75      0.84      0.80       327
+
+    accuracy                           0.93      2026
+   macro avg       0.86      0.90      0.88      2026
+weighted avg       0.93      0.93      0.93      2026
+
+Classification Report for RF:
+              precision    recall  f1-score   support
+
+           0       0.97      0.98      0.97      1699
+           1       0.87      0.85      0.86       327
+
+    accuracy                           0.96      2026
+   macro avg       0.92      0.91      0.92      2026
+weighted avg       0.96      0.96      0.96      2026
+
+Classification Report for Adaboost:
+              precision    recall  f1-score   support
+
+           0       0.98      0.96      0.97      1699
+           1       0.80      0.88      0.84       327
+
+    accuracy                           0.95      2026
+   macro avg       0.89      0.92      0.90      2026
+weighted avg       0.95      0.95      0.95      2026
+
+Classification Report for GBM:
+              precision    recall  f1-score   support
+
+           0       0.98      0.96      0.97      1699
+           1       0.83      0.91      0.87       327
+
+    accuracy                           0.96      2026
+   macro avg       0.91      0.94      0.92      2026
+weighted avg       0.96      0.96      0.96      2026
+
+Classification Report for XGBoost:
+              precision    recall  f1-score   support
+
+           0       0.98      0.98      0.98      1699
+           1       0.88      0.90      0.89       327
+
+    accuracy                           0.96      2026
+   macro avg       0.93      0.94      0.94      2026
+weighted avg       0.97      0.96      0.97      2026
+
+Classification Report for LightGBM:
+              precision    recall  f1-score   support
+
+           0       0.98      0.98      0.98      1699
+           1       0.89      0.91      0.90       327
+
+    accuracy                           0.97      2026
+   macro avg       0.93      0.94      0.94      2026
+weighted avg       0.97      0.97      0.97      2026
+
+Classification Report for CatBoost:
+              precision    recall  f1-score   support
+
+           0       0.98      0.98      0.98      1699
+           1       0.89      0.90      0.90       327
+
+    accuracy                           0.97      2026
+   macro avg       0.94      0.94      0.94      2026
+weighted avg       0.97      0.97      0.97      2026
+"""
 
 #########################################################################################################################
 df = pd.read_csv("BankChurners.csv")
 
-df.drop(["Naive_Bayes_Classifier_Attrition_Flag_Card_Category_Contacts_Count_12_mon_Dependent_count_Education_Level_Months_Inactive_12_mon_1",
-         "Naive_Bayes_Classifier_Attrition_Flag_Card_Category_Contacts_Count_12_mon_Dependent_count_Education_Level_Months_Inactive_12_mon_2"], inplace=True, axis=1)
+df.drop([
+    "Naive_Bayes_Classifier_Attrition_Flag_Card_Category_Contacts_Count_12_mon_Dependent_count_Education_Level_Months_Inactive_12_mon_1",
+    "Naive_Bayes_Classifier_Attrition_Flag_Card_Category_Contacts_Count_12_mon_Dependent_count_Education_Level_Months_Inactive_12_mon_2"],
+    inplace=True, axis=1)
 
 # Bağımlı değişkenimizin ismini target yapalım
-df.rename(columns={"Attrition_Flag":"Target"}, inplace=True)
+df.rename(columns={"Attrition_Flag": "Target"}, inplace=True)
 
 # ID kolonunda duplicate bakıp, sonra bu değişkeni silme
-df["CLIENTNUM"].nunique() # 10127 - yani duplicate yok id'de
+df["CLIENTNUM"].nunique()  # 10127 - yani duplicate yok id'de
 df.drop("CLIENTNUM", axis=1, inplace=True)
 
 cat_cols, num_cols, cat_but_car = grab_col_names(df)
@@ -217,7 +368,6 @@ th = np.sort(df_scores)[25]
 
 df[df_scores < th].drop(axis=0, labels=df[df_scores < th].index)
 
-
 # NaN işlemleri
 cols_with_unknown = ['Income_Category', "Education_Level"]
 for col in cols_with_unknown:
@@ -227,7 +377,7 @@ for col in cols_with_unknown:
 df["Target"] = df.apply(lambda x: 0 if (x["Target"] == "Existing Customer") else 1, axis=1)
 
 df.head()
-df.shape # (10127, 21)
+df.shape  # (10127, 21)
 
 # Gender
 df["Gender"] = df.apply(lambda x: 1 if (x["Gender"] == "F") else 0, axis=1)
@@ -244,15 +394,15 @@ def ordinal_encoder(dataframe, col):
     if col is "Income_Category":
         col_cats = income_cats
 
-    ordinal_encoder = OrdinalEncoder(categories=[col_cats]) # burada direkt int alamıyorum çünkü NaN'lar mevcut.
+    ordinal_encoder = OrdinalEncoder(categories=[col_cats])  # burada direkt int alamıyorum çünkü NaN'lar mevcut.
     df[col] = ordinal_encoder.fit_transform(df[[col]])
 
     print(df[col].head(20))
     return df
 
-df = ordinal_encoder(df,"Education_Level")
-df = ordinal_encoder(df,"Income_Category")
 
+df = ordinal_encoder(df, "Education_Level")
+df = ordinal_encoder(df, "Income_Category")
 
 # Yeni değişkenler
 df.head()
@@ -269,7 +419,6 @@ df.groupby("Card_Category")["Customer_Age_Category"].count()
 # kart grubunda yaş kategorilerine bakma
 count_by_card_age_category = df.groupby("Card_Category")["Customer_Age_Category"].value_counts()
 
-
 total_counts_by_card = df.groupby("Card_Category")["Customer_Age_Category"].count()
 percentage_by_card_age_category = count_by_card_age_category.div(total_counts_by_card, level='Card_Category') * 100
 print("Count:")
@@ -278,15 +427,17 @@ print("\nPercentage:")
 print(percentage_by_card_age_category)
 
 # Kart grubu kırılımında target
-count_by_card_target_age_category = df.groupby(["Card_Category", "Target"])["Customer_Age_Category"].value_counts().unstack(fill_value=0)
-total_counts_by_card_target = df.groupby(["Card_Category", "Target"])["Customer_Age_Category"].count().unstack(fill_value=0)
+count_by_card_target_age_category = df.groupby(["Card_Category", "Target"])[
+    "Customer_Age_Category"].value_counts().unstack(fill_value=0)
+total_counts_by_card_target = df.groupby(["Card_Category", "Target"])["Customer_Age_Category"].count().unstack(
+    fill_value=0)
 print("Count:")
 print(count_by_card_target_age_category)
 
-
 # Yüzdelikli bakış
 # Hedef değişkenin yüzdelerini hesaplayalım
-percentage_by_card_target_age_category = count_by_card_target_age_category.div(total_counts_by_card_target.sum(axis=1), axis=0) * 100
+percentage_by_card_target_age_category = count_by_card_target_age_category.div(total_counts_by_card_target.sum(axis=1),
+                                                                               axis=0) * 100
 print("Percentage by Target:")
 print(percentage_by_card_target_age_category)
 
@@ -335,18 +486,16 @@ months_on_book_card_category = df.groupby("Card_Category")["Months_on_book"].mea
 df["Education_Level"].value_counts()
 education_card_category = df.groupby("Education_Level")["Card_Category"].value_counts()
 
-
 # Müşteriyle iletişime geçme ve target
 df["Contacts_Count_12_mon"].value_counts()
 
 contacts_target = df.groupby("Target")["Contacts_Count_12_mon"].value_counts()
 df.groupby("Target")["Contacts_Count_12_mon"].count() / (len(df["Target"]))
 
-
 # Target'e göre Contacts_Count_12_mon oranları
 total_counts = df.groupby("Target")["Contacts_Count_12_mon"].count()
 grouped_counts = df.groupby(["Target", "Contacts_Count_12_mon"]).size()
-ratios = grouped_counts *100 / total_counts
+ratios = grouped_counts * 100 / total_counts
 print(ratios)
 """
 1       0                        0.430
@@ -357,7 +506,6 @@ print(ratios)
         5                        3.626
         6                        3.319
 """
-
 
 # Hedef değişkenine göre Contacts_Count_12_mon değerlerinin yüzdelerini hesaplayalım
 percentage_by_target_contacts = df.groupby("Target")["Contacts_Count_12_mon"].value_counts(normalize=True).mul(100)
@@ -378,8 +526,7 @@ mean_by_target_ratio = df.groupby("Target")["Avg_Utilization_Ratio"].mean()
 df.head()
 
 # Gelir grubu ve target kırılımında limit analizi
-income_cat_target_credit_limit = df.groupby(["Target","Income_Category" ])["Income_Category"].count()
-
+income_cat_target_credit_limit = df.groupby(["Target", "Income_Category"])["Income_Category"].count()
 
 # Gelir kategorileri 0 olan hedef değişkeni için sayıları hesaplayalım
 count_by_income_target = df.groupby(["Income_Category", "Target"])["Income_Category"].count().unstack(fill_value=0)
@@ -395,7 +542,6 @@ result = pd.DataFrame({"Count_Target_0": count_0_target_income, "Percentage_Targ
 
 # Sonucu ekrana yazdıralım
 print(result)
-
 
 # Gelir kategorileri 1 olan hedef değişkeni için sayıları hesaplayalım
 # Gelir kategorileri için hem 0 hem de 1 hedef değişkeni için sayıları hesaplayalım
@@ -413,10 +559,8 @@ result = pd.DataFrame({"Count_Target_1": count_1_target_income, "Percentage_Targ
 # Sonucu ekrana yazdıralım
 print(result)
 
-
 # Cinsiyet ve target analizi
 gender_target = df.groupby("Gender")["Target"].mean()
-
 
 # FM analizi (FM skorları hesaplama)
 # Total_Trans_Amt: son 12 aydaki tüm transaction'lardan gelen miktar
@@ -442,8 +586,6 @@ MonetaryScore
 5   0.130
 """
 
-
-
 # Total_Ct_Chng_Q4_Q1: Change in Transaction Count (Q4 over Q1)
 # Total_Amt_Chng_Q4_Q1: Change in Transaction Amount (Q4 over Q1)
 
@@ -466,12 +608,12 @@ df['Total_Ct_Increased'].value_counts()
 ct_target = df.groupby("Total_Ct_Increased")["Target"].mean()
 amt_target = df.groupby("Total_Amt_Increased")["Target"].mean()
 
-
 # one-hot encoder
 df = one_hot_encoder(df, ["Marital_Status", "Card_Category", "Customer_Age_Category"], drop_first=True)
 
 # Knn imputer
 from sklearn.impute import KNNImputer
+
 imputer = KNNImputer(n_neighbors=10)
 # dff["Income_Category"] = pd.DataFrame(imputer.fit_transform(dff["Income_Category"]), columns=dff.columns)
 df = pd.DataFrame(imputer.fit_transform(df), columns=df.columns)
@@ -497,13 +639,8 @@ df[num_cols] = rs.fit_transform(df[num_cols])
 
 # Smote
 # Applying SMOTE to handle imbalance in target variable
-
+dff = df.copy()
 # kitaptaki smote
-from collections import Counter
-from sklearn.datasets import make_classification
-from imblearn.over_sampling import SMOTE
-from matplotlib import pyplot
-from numpy import where
 
 y = df["Target"]
 X = df.drop(["Target"], axis=1)
@@ -513,6 +650,7 @@ X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_
 counter = Counter(y_train)
 print(counter)
 
+Counter(y_test)
 
 # transform the dataset
 oversample = SMOTE()
@@ -522,36 +660,231 @@ counter = Counter(y_train)
 print(counter)
 
 
-
-# Cost sensitive learning
-# Weighted Logistic Regression
-from numpy import mean
-from sklearn.datasets import make_classification
-from sklearn.model_selection import cross_val_score
-from sklearn.model_selection import RepeatedStratifiedKFold
-# define model
-weights = {0: 0.01, 1: 1.0}
-model = LogisticRegression(solver='lbfgs', class_weight=weights)
-# define evaluation procedure
-cv = RepeatedStratifiedKFold(n_splits=10, n_repeats=3, random_state=1)
-# evaluate model
-scores = cross_val_score(model, X, y, scoring='roc_auc', cv=cv, n_jobs=-1)
-# summarize performance
-print('Mean ROC AUC: %.3f' % mean(scores))
-# Mean ROC AUC: 0.911
+#bence burada tüm modellerimizi bir çalıştırmalıyız
 
 
+def model_metrics(X_train, y_train, X_test, y_test):
+    print("Base Models....")
+    classifiers = [('LR', LogisticRegression()),
+                   ('KNN', KNeighborsClassifier()),
+                   ("SVC", SVC()),
+                   ("CART", DecisionTreeClassifier()),
+                   ("RF", RandomForestClassifier()),
+                   ('Adaboost', AdaBoostClassifier()),
+                   ('GBM', GradientBoostingClassifier()),
+                   ('XGBoost', XGBClassifier(use_label_encoder=False, eval_metric='logloss')),
+                   ('LightGBM', LGBMClassifier()),
+                   ('CatBoost', CatBoostClassifier(verbose=False))
+                   ]
 
-# confusion matrix
-def plot_confusion_matrix(y, y_pred):
-    acc = round(accuracy_score(y, y_pred), 2)
-    cm = confusion_matrix(y, y_pred)
-    sns.heatmap(cm, annot=True, fmt=".0f")
-    plt.xlabel('y_pred')
-    plt.ylabel('y')
-    plt.title('Accuracy Score: {0}'.format(acc), size=10)
-    plt.show()
+    for name, classifier in classifiers:
+        model = classifier.fit(X_train, y_train)
+        y_pred = model.predict(X_test)
 
-plot_confusion_matrix(y, y_pred)
+        # Classification Report
+        report = classification_report(y_test, y_pred)
+        print(f"Classification Report for {name}:")
+        print(report)
 
-print(classification_report(y, y_pred))
+model_metrics(X_train, y_train, X_test, y_test)
+"""
+Classification Report for LR:
+              precision    recall  f1-score   support
+
+           0       0.95      0.88      0.91      1699
+           1       0.54      0.74      0.62       327
+
+    accuracy                           0.86      2026
+   macro avg       0.74      0.81      0.77      2026
+weighted avg       0.88      0.86      0.86      2026
+
+Classification Report for KNN:
+              precision    recall  f1-score   support
+
+           0       0.97      0.88      0.92      1699
+           1       0.58      0.87      0.70       327
+
+    accuracy                           0.88      2026
+   macro avg       0.78      0.88      0.81      2026
+weighted avg       0.91      0.88      0.89      2026
+
+Classification Report for SVC:
+              precision    recall  f1-score   support
+
+           0       0.97      0.92      0.94      1699
+           1       0.66      0.83      0.74       327
+
+    accuracy                           0.91      2026
+   macro avg       0.82      0.88      0.84      2026
+weighted avg       0.92      0.91      0.91      2026
+
+Classification Report for CART:
+              precision    recall  f1-score   support
+
+           0       0.96      0.94      0.95      1699
+           1       0.73      0.81      0.77       327
+
+    accuracy                           0.92      2026
+   macro avg       0.85      0.88      0.86      2026
+weighted avg       0.93      0.92      0.92      2026
+
+Classification Report for RF:
+              precision    recall  f1-score   support
+
+           0       0.98      0.97      0.97      1699
+           1       0.85      0.89      0.87       327
+
+    accuracy                           0.96      2026
+   macro avg       0.91      0.93      0.92      2026
+weighted avg       0.96      0.96      0.96      2026
+
+Classification Report for Adaboost:
+              precision    recall  f1-score   support
+
+           0       0.98      0.94      0.96      1699
+           1       0.76      0.91      0.83       327
+
+    accuracy                           0.94      2026
+   macro avg       0.87      0.93      0.90      2026
+weighted avg       0.95      0.94      0.94      2026
+
+Classification Report for GBM:
+              precision    recall  f1-score   support
+
+           0       0.99      0.96      0.97      1699
+           1       0.81      0.94      0.87       327
+
+    accuracy                           0.95      2026
+   macro avg       0.90      0.95      0.92      2026
+weighted avg       0.96      0.95      0.96      2026
+
+Classification Report for XGBoost:
+              precision    recall  f1-score   support
+
+           0       0.98      0.97      0.98      1699
+           1       0.86      0.91      0.89       327
+
+    accuracy                           0.96      2026
+   macro avg       0.92      0.94      0.93      2026
+weighted avg       0.96      0.96      0.96      2026
+
+Classification Report for LightGBM:
+              precision    recall  f1-score   support
+
+           0       0.98      0.97      0.98      1699
+           1       0.85      0.91      0.88       327
+
+    accuracy                           0.96      2026
+   macro avg       0.92      0.94      0.93      2026
+weighted avg       0.96      0.96      0.96      2026
+
+Classification Report for CatBoost:
+              precision    recall  f1-score   support
+
+           0       0.98      0.97      0.98      1699
+           1       0.87      0.92      0.89       327
+
+    accuracy                           0.96      2026
+   macro avg       0.93      0.95      0.94      2026
+weighted avg       0.97      0.96      0.96      2026
+
+""" # Sonuçlar
+
+######################################################
+# 4. Automated Hyperparameter Optimization
+######################################################
+"""Random Forest:
+
+max_depth: [5, 10, 15, None]
+max_features: [sqrt(n_features), log2(n_features), 0.5]
+min_samples_split: [2, 5, 10]
+n_estimators: [50, 100, 200, 300]
+XGBoost:
+
+learning_rate: [0.01, 0.05, 0.1, 0.5]
+max_depth: [3, 5, 7, 10]
+n_estimators: [50, 100, 200, 300]
+LightGBM:
+
+learning_rate: [0.01, 0.05, 0.1, 0.5]
+n_estimators: [50, 100, 200, 300]
+max_depth: [3, 5, 7, 10]"""
+
+df.shape
+
+rf_params = {"max_depth": [5, 10, 15, None],
+             "max_features": [int(np.sqrt(df.shape[1])), int(np.log2(df.shape[1])), 0.5],
+             "min_samples_split": [2, 5, 10],
+             "n_estimators": [50, 100, 200, 300]}
+
+xgboost_params = {"learning_rate": [0.01, 0.05, 0.1, 0.5],
+                  "max_depth": [3, 5, 7, 10],
+                  "n_estimators": [50, 100, 200, 300]}
+
+lightgbm_params = {"learning_rate": [0.01, 0.05, 0.1, 0.5],
+                   "n_estimators": [50, 100, 200, 300],
+                   "max_depth": [3, 5, 7, 10]}
+
+gbm_params = {"learning_rate": [0.01, 0.1, 0.5, 1],
+              "n_estimators": [50, 100, 200, 300],
+              "max_depth": [3, 5, 7, 10],
+              "subsample": [0.5, 0.75, 1.0]}
+
+catboost_params = {"learning_rate": [0.01, 0.05, 0.1, 0.5],
+                   "depth": [3, 5, 7, 10],
+                   "iterations": [50, 100, 200, 300],
+                   "subsample": [0.5, 0.75, 1.0]}
+
+classifiers = ([("RF", RandomForestClassifier(), rf_params),
+                ('XGBoost', XGBClassifier(use_label_encoder=False, eval_metric='logloss'), xgboost_params),
+                ('LightGBM', LGBMClassifier(force_col_wise=True), lightgbm_params),
+                ('GBM', GradientBoostingClassifier()),
+                ('CatBoost', CatBoostClassifier(verbose=False))])
+
+
+def hyperparameter_optimization(X_train, y_train, X_test, y_test, cv=10, scoring="roc_auc"):
+    print("Hyperparameter Optimization....")
+    best_models = {}
+    for name, classifier, params in classifiers:
+        print(f"########## {name} ##########")
+        cv_results = cross_validate(classifier, X_train, y_train, cv=cv, scoring=scoring)
+        print(f"{scoring} (Before): {round(cv_results['test_score'].mean(), 4)}")
+
+        gs_best = GridSearchCV(classifier, params, cv=cv, n_jobs=-1, verbose=False).fit(X_train, y_train)
+        final_model = classifier.set_params(**gs_best.best_params_)
+
+        cv_results = cross_validate(final_model, X_train, y_train, cv=cv, scoring=scoring)
+        print(f"{scoring} (After): {round(cv_results['test_score'].mean(), 4)}")
+        print(f"{name} best params: {gs_best.best_params_}")
+
+        # Test verileri üzerinde modelin performansını değerlendir
+        final_model.fit(X_train, y_train)
+        y_pred = final_model.predict(X_test)
+        report = classification_report(y_test, y_pred)
+        print(f"{name} classification report:\n{report}\n")
+
+        best_models[name] = final_model
+
+    return best_models
+
+hyperparameter_optimization(X_train, y_train, X_test, y_test)
+
+def hyperparameter_optimization(X, y, cv=3, scoring="roc_auc"):
+    print("Hyperparameter Optimization....")
+    best_models = {}
+    for name, classifier, params in classifiers:
+        print(f"########## {name} ##########")
+        cv_results = cross_validate(classifier, X, y, cv=cv, scoring=scoring)
+        print(f"{scoring} (Before): {round(cv_results['test_score'].mean(), 4)}")
+
+        gs_best = GridSearchCV(classifier, params, cv=cv, n_jobs=-1, verbose=False).fit(X, y)
+        final_model = classifier.set_params(**gs_best.best_params_)
+
+        cv_results = cross_validate(final_model, X, y, cv=cv, scoring=scoring)
+        print(f"{scoring} (After): {round(cv_results['test_score'].mean(), 4)}")
+        print(f"{name} best params: {gs_best.best_params_}", end="\n\n")
+        best_models[name] = final_model
+    return best_models
+
+
+best_models = hyperparameter_optimization(X, y)
