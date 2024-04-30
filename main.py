@@ -196,58 +196,33 @@ df.drop("CLIENTNUM", axis=1, inplace=True)
 
 cat_cols, num_cols, cat_but_car = grab_col_names(df)
 
-# outliers
+# Outliers
 # IQR
 for col in num_cols:
     print(col)
     grab_outliers(df, col)
 
-
-############################# encode etmeden, IQR yapmadan, sırf num_cols'da LOF
-# LOF - string ile çalışmıyor
-# pca- temel bileşen analizi, 100 değişken varken 2 değişkene indirgem
-
-# bakalım çok değişkenli yaklaştığımızda ne olacak
-# buradaki komşuluk sayısı 20, default da 20 zaten
-clf = LocalOutlierFactor(n_neighbors=20)
-clf.fit_predict(df[num_cols]) # skorları getirir
-
-# skorları tutma
-df_scores = clf.negative_outlier_factor_
-df_scores[0:5]
-# df_scores = -df_scores -> eğer eksi değerleriyle değerlendirmek istemezsen, skorları pozitife çevirir
-np.sort(df_scores)[0:5] # en kötü 5 gözlem
-
-
-# elbow (dirsek) yöntemi
-# her bir nokta eşik değerini temsil ediyor
-# en marjinal değişiklik, kırılım, nerede olduysa onu eşik değer olarak belirleyebiliriz
-# mesela burada 3. index'teki değeri seçmeyi tercih edebiliriz
-scores = pd.DataFrame(np.sort(df_scores))
-scores.plot(stacked=True, xlim=[0, 100], style='.-')
-plt.show()
-
-th = np.sort(df_scores)[25]
-
-# -4'ten daha küçük yani -5,-6 gibi değerleri seçme
-df[df_scores < th]
-
-df[df_scores < th].shape
-# bunların neden aykırı olduğunu anlamak istersek:
-# özet istatistikleriyle kıyaslayarak anlam çıkarabiliriz
-df.describe([0.01, 0.05, 0.75, 0.90, 0.99]).T
-
-df[df_scores < th].index
-
-df[df_scores < th].drop(axis=0, labels=df[df_scores < th].index)
-
-#outlier
 for col in num_cols:
     print(col)
     grab_outliers(df, col)
 
 for col in num_cols:
     replace_with_thresholds(df, col)
+
+# LOF
+clf = LocalOutlierFactor(n_neighbors=20)
+clf.fit_predict(df[num_cols])
+
+df_scores = clf.negative_outlier_factor_
+
+scores = pd.DataFrame(np.sort(df_scores))
+scores.plot(stacked=True, xlim=[0, 100], style='.-')
+plt.show()
+
+th = np.sort(df_scores)[25]
+
+df[df_scores < th].drop(axis=0, labels=df[df_scores < th].index)
+
 
 # NaN işlemleri
 cols_with_unknown = ['Income_Category', "Education_Level"]
@@ -265,7 +240,7 @@ df["Gender"] = df.apply(lambda x: 1 if (x["Gender"] == "F") else 0, axis=1)
 df["Gender"].unique()
 
 
-# ordinal encoder
+# Ordinal encoder
 def ordinal_encoder(dataframe, col):
     edu_cats = ['Uneducated', 'High School', 'College', 'Graduate', 'Post-Graduate', 'Doctorate', np.nan]
     income_cats = ['Less than $40K', '$40K - $60K', '$60K - $80K', '$80K - $120K', '$120K +', np.nan]
@@ -289,21 +264,21 @@ df = ordinal_encoder(df,"Income_Category")
 # one-hot encoder
 df = one_hot_encoder(df, ["Marital_Status", "Card_Category"], drop_first=True)
 
-# knn'in uygulanması. knn komşuların ortalamasıyla doldurur
-dff = df.copy()
+# Knn imputer
 from sklearn.impute import KNNImputer
 imputer = KNNImputer(n_neighbors=10)
 # dff["Income_Category"] = pd.DataFrame(imputer.fit_transform(dff["Income_Category"]), columns=dff.columns)
-dff = pd.DataFrame(imputer.fit_transform(dff), columns=dff.columns)
+df = pd.DataFrame(imputer.fit_transform(df), columns=df.columns)
 
 cat_cols, num_cols, cat_but_car = grab_col_names(df)
 
+df.head()
 
-dff["Education_Level"] = dff["Education_Level"].round().astype(int)
-dff["Income_Category"] = dff["Income_Category"].round().astype(int)
+df["Education_Level"] = df["Education_Level"].round().astype(int)
+df["Income_Category"] = df["Income_Category"].round().astype(int)
 
 
-# yeni değişkenler
+# Yeni değişkenler
 df.head()
 
 df.groupby("Contacts_Count_12_mon")["Months_Inactive_12_mon"].mean()
@@ -339,7 +314,7 @@ percentage_by_card_target_age_category = count_by_card_target_age_category.div(t
 print("Percentage by Target:")
 print(percentage_by_card_target_age_category)
 
-# churn etme olasılıkları, kart kategrisi ve yaş grubu kırılımında
+# Churn etme olasılıkları, kart kategrisi ve yaş grubu kırılımında
 count_by_credit_limit = df.groupby(["Card_Category", "Customer_Age_Category"])["Target"].mean()
 # Blue           Young                   0.132
 #                Middle Aged             0.165
@@ -515,62 +490,11 @@ df['Total_Ct_Increased'].value_counts()
 ct_target = df.groupby("Total_Ct_Increased")["Target"].mean()
 amt_target = df.groupby("Total_Amt_Increased")["Target"].mean()
 
-df.head()
+df = one_hot_encoder(df,["Customer_Age_Category"], drop_first=True)
 
 
-# total_revolving_bal / credit_limit = Avg_Utilization_Ratio?
-
-df["uti_rate_out_calc"] =  df["Total_Revolving_Bal"] / df["Credit_Limit"]
-
-df[["Avg_Utilization_Ratio",  "uti_rate_out_calc"]].head(20)
-
-
-
-
-a = df["uti_rate_out_calc"] == df["Avg_Utilization_Ratio"]
-
-a.head(20)
-
-
-
-result = df["Avg_Utilization_Ratio"].equals(df["Total_Revolving_Bal"] / df["Credit_Limit"])
-# bu false çıktı ama virgül sonrası sebebiyle  bu yüzden bu değişkenin anlamlı olmayacağına karar verdik
-
-df.drop("uti_rate_out_calc", inplace=True, axis=1)
-
-df.head()
-
-
-# smote
-# bunları çalıştırabilmek için base model için hazırladığımız df'i kullandım
-
+# Smote
 # Applying SMOTE to handle imbalance in target variable
-from imblearn.over_sampling import SMOTE
-# SMOTE yöntemini uygulayalım
-sm = SMOTE(random_state=69, sampling_strategy=1.0)
-
-X.head()
-y.head()
-
-X.columns
-
-# SMOTE yöntemini uygulayalım
-sm = SMOTE(random_state=69, sampling_strategy=1.0)
-X_resampled, y_resampled = sm.fit_resample(X, y)
-
-# Yeni örnekleme sonuçlarını kullanarak bir DataFrame oluşturalım (isteğe bağlı)
-resampled_df = pd.DataFrame(X_resampled, columns=X.columns)
-resampled_df["Attrition_Flag_Existing Customer"] = y_resampled
-
-# Sonuçları inceleyelim
-print("Orjinal veri çerçevesi boyutu:", df.shape) # Orjinal veri çerçevesi boyutu: (10127, 52)
-print("Yeniden örnekleme sonrası veri çerçevesi boyutu:", resampled_df.shape) # Yeniden örnekleme sonrası veri çerçevesi boyutu: (17000, 51)
-
-
-resampled_df["Attrition_Flag_Existing Customer"].value_counts()
-# Attrition_Flag_Existing Customer
-# 1    8500
-# 0    8500
 
 # kitaptaki smote
 from collections import Counter
@@ -580,28 +504,21 @@ from matplotlib import pyplot
 from numpy import where
 
 y = df["Target"]
-X = df.drop(["Target", "CLIENTNUM"], axis=1)
+X = df.drop(["Target"], axis=1)
 
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
-counter = Counter(y)
+counter = Counter(y_train)
 print(counter)
+
 
 # transform the dataset
 oversample = SMOTE()
-X, y = oversample.fit_resample(X, y)
+X_train, y_train = oversample.fit_resample(X_train, y_train)
 # summarize the new class distribution
-counter = Counter(y)
+counter = Counter(y_train)
 print(counter)
 
-
-
-# kaggle'da biri şöyle yapmış
-# Applying SMOTE to handle imbalance in target variable
-
-sm = SMOTE(random_state=69, sampling_strategy=1.0)
-
-X_train, y_train = sm.fit_resample(X_train, y_train)
 
 
 # Cost sensitive learning
