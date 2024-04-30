@@ -185,8 +185,6 @@ df = pd.read_csv("BankChurners.csv")
 df.drop(["Naive_Bayes_Classifier_Attrition_Flag_Card_Category_Contacts_Count_12_mon_Dependent_count_Education_Level_Months_Inactive_12_mon_1",
          "Naive_Bayes_Classifier_Attrition_Flag_Card_Category_Contacts_Count_12_mon_Dependent_count_Education_Level_Months_Inactive_12_mon_2"], inplace=True, axis=1)
 
-cat_cols, num_cols, cat_but_car = grab_col_names(df)
-
 # Bağımlı değişkenimizin ismini target yapalım
 df.rename(columns={"Attrition_Flag":"Target"}, inplace=True)
 
@@ -198,10 +196,6 @@ cat_cols, num_cols, cat_but_car = grab_col_names(df)
 
 # Outliers
 # IQR
-for col in num_cols:
-    print(col)
-    grab_outliers(df, col)
-
 for col in num_cols:
     print(col)
     grab_outliers(df, col)
@@ -244,15 +238,13 @@ df["Gender"].unique()
 def ordinal_encoder(dataframe, col):
     edu_cats = ['Uneducated', 'High School', 'College', 'Graduate', 'Post-Graduate', 'Doctorate', np.nan]
     income_cats = ['Less than $40K', '$40K - $60K', '$60K - $80K', '$80K - $120K', '$120K +', np.nan]
-    col_cats = []
 
     if col is "Education_Level":
         col_cats = edu_cats
     if col is "Income_Category":
         col_cats = income_cats
 
-    # cat_codes = range(0, len(col_cats)) # buna ihtiyaç var mı? sanki kendisi rakamları veriyor gibi.
-    ordinal_encoder = OrdinalEncoder(categories=[col_cats])
+    ordinal_encoder = OrdinalEncoder(categories=[col_cats]) # burada direkt int alamıyorum çünkü NaN'lar mevcut.
     df[col] = ordinal_encoder.fit_transform(df[[col]])
 
     print(df[col].head(20))
@@ -260,22 +252,6 @@ def ordinal_encoder(dataframe, col):
 
 df = ordinal_encoder(df,"Education_Level")
 df = ordinal_encoder(df,"Income_Category")
-
-# one-hot encoder
-df = one_hot_encoder(df, ["Marital_Status", "Card_Category"], drop_first=True)
-
-# Knn imputer
-from sklearn.impute import KNNImputer
-imputer = KNNImputer(n_neighbors=10)
-# dff["Income_Category"] = pd.DataFrame(imputer.fit_transform(dff["Income_Category"]), columns=dff.columns)
-df = pd.DataFrame(imputer.fit_transform(df), columns=df.columns)
-
-cat_cols, num_cols, cat_but_car = grab_col_names(df)
-
-df.head()
-
-df["Education_Level"] = df["Education_Level"].round().astype(int)
-df["Income_Category"] = df["Income_Category"].round().astype(int)
 
 
 # Yeni değişkenler
@@ -490,8 +466,34 @@ df['Total_Ct_Increased'].value_counts()
 ct_target = df.groupby("Total_Ct_Increased")["Target"].mean()
 amt_target = df.groupby("Total_Amt_Increased")["Target"].mean()
 
-df = one_hot_encoder(df,["Customer_Age_Category"], drop_first=True)
 
+# one-hot encoder
+df = one_hot_encoder(df, ["Marital_Status", "Card_Category", "Customer_Age_Category"], drop_first=True)
+
+# Knn imputer
+from sklearn.impute import KNNImputer
+imputer = KNNImputer(n_neighbors=10)
+# dff["Income_Category"] = pd.DataFrame(imputer.fit_transform(dff["Income_Category"]), columns=dff.columns)
+df = pd.DataFrame(imputer.fit_transform(df), columns=df.columns)
+
+cat_cols, num_cols, cat_but_car = grab_col_names(df)
+
+df.head(20)
+
+df["Education_Level"] = df["Education_Level"].round().astype(int)
+df["Income_Category"] = df["Income_Category"].round().astype(int)
+
+# TODO üstteki ile birleştir.
+for col in df.columns:
+    if df[col].dtype == 'float64':  # Sadece float sütunları kontrol edelim
+        if (df[col] % 1 == 000).all():  # Tüm değerlerin virgülden sonrası 0 mı kontrol edelim
+            df[col] = df[col].astype(int)
+
+cat_cols, num_cols, cat_but_car = grab_col_names(df)
+
+# Robust scaler
+rs = RobustScaler()
+df[num_cols] = rs.fit_transform(df[num_cols])
 
 # Smote
 # Applying SMOTE to handle imbalance in target variable
