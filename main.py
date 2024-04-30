@@ -187,8 +187,6 @@ df.drop(["Naive_Bayes_Classifier_Attrition_Flag_Card_Category_Contacts_Count_12_
 
 cat_cols, num_cols, cat_but_car = grab_col_names(df)
 
-df[cat_cols].head(20)
-
 # Bağımlı değişkenimizin ismini target yapalım
 df.rename(columns={"Attrition_Flag":"Target"}, inplace=True)
 
@@ -198,60 +196,12 @@ df.drop("CLIENTNUM", axis=1, inplace=True)
 
 cat_cols, num_cols, cat_but_car = grab_col_names(df)
 
-# NaN işlemleri
-cols_with_unknown = ['Income_Category', "Marital_Status", "Education_Level"]
-for col in cols_with_unknown:
-    df[col] = df[col].apply(lambda x: np.nan if x == 'Unknown' else x)
-
-# Encoding işlemleri
-df["Target"] = df.apply(lambda x: 0 if (x["Target"] == "Existing Customer") else 1, axis=1)
-
-df.head()
-df.shape # (10127, 21)
-
-# Gender
-df["Gender"] = df.apply(lambda x: 1 if (x["Gender"] == "F") else 0, axis=1)
-df["Gender"].unique()
-
-# ordinal encoder
-def ordinal_encoder(dataframe, col):
-    edu_cats = ['Uneducated', 'High School', 'College', 'Graduate', 'Post-Graduate', 'Doctorate', np.nan]
-    income_cats = ['Less than $40K', '$40K - $60K', '$60K - $80K', '$80K - $120K', '$120K +', np.nan]
-    col_cats = []
-
-    if col is "Education_Level":
-        col_cats = edu_cats
-    if col is "Income_Category":
-        col_cats = income_cats
-
-    # cat_codes = range(0, len(col_cats)) # buna ihtiyaç var mı? sanki kendisi rakamları veriyor gibi.
-    ordinal_encoder = OrdinalEncoder(categories=[col_cats])
-    df[col] = ordinal_encoder.fit_transform(df[[col]])
-
-    print(df[col].head(20))
-    return df
-
-df = ordinal_encoder(df,"Education_Level")
-df = ordinal_encoder(df,"Income_Category")
-
-# knn'in uygulanması. knn komşuların ortalamasıyla doldurur
-dff = df.copy()
-from sklearn.impute import KNNImputer
-imputer = KNNImputer(n_neighbors=1)
-dff["Income_Category"] = pd.DataFrame(imputer.fit_transform(dff["Income_Category"]), columns=dff.columns)
-#dff["Income_Category"] = pd.DataFrame(imputer.fit_transform(dff["Income_Category"]))
-
-dff = pd.DataFrame(imputer.fit_transform(dff), columns=dff.columns)
-
-cat_cols, num_cols, cat_but_car = grab_col_names(df)
-
 # outliers
 # IQR
 for col in num_cols:
     print(col)
     grab_outliers(df, col)
 
-df.head()
 
 ############################# encode etmeden, IQR yapmadan, sırf num_cols'da LOF
 # LOF - string ile çalışmıyor
@@ -298,6 +248,66 @@ for col in num_cols:
 
 for col in num_cols:
     replace_with_thresholds(df, col)
+
+# NaN işlemleri
+cols_with_unknown = ['Income_Category', "Education_Level"]
+for col in cols_with_unknown:
+    df[col] = df[col].apply(lambda x: np.nan if x == 'Unknown' else x)
+
+# Encoding işlemleri
+df["Target"] = df.apply(lambda x: 0 if (x["Target"] == "Existing Customer") else 1, axis=1)
+
+df.head()
+df.shape # (10127, 21)
+
+# Gender
+df["Gender"] = df.apply(lambda x: 1 if (x["Gender"] == "F") else 0, axis=1)
+df["Gender"].unique()
+
+
+# ordinal encoder
+def ordinal_encoder(dataframe, col):
+    edu_cats = ['Uneducated', 'High School', 'College', 'Graduate', 'Post-Graduate', 'Doctorate', np.nan]
+    income_cats = ['Less than $40K', '$40K - $60K', '$60K - $80K', '$80K - $120K', '$120K +', np.nan]
+    col_cats = []
+
+    if col is "Education_Level":
+        col_cats = edu_cats
+    if col is "Income_Category":
+        col_cats = income_cats
+
+    # cat_codes = range(0, len(col_cats)) # buna ihtiyaç var mı? sanki kendisi rakamları veriyor gibi.
+    ordinal_encoder = OrdinalEncoder(categories=[col_cats])
+    df[col] = ordinal_encoder.fit_transform(df[[col]])
+
+    print(df[col].head(20))
+    return df
+
+df = ordinal_encoder(df,"Education_Level")
+df = ordinal_encoder(df,"Income_Category")
+
+# one-hot encoder
+df = one_hot_encoder(df, ["Marital_Status", "Card_Category"], drop_first=True)
+
+# knn'in uygulanması. knn komşuların ortalamasıyla doldurur
+dff = df.copy()
+from sklearn.impute import KNNImputer
+imputer = KNNImputer(n_neighbors=10)
+# dff["Income_Category"] = pd.DataFrame(imputer.fit_transform(dff["Income_Category"]), columns=dff.columns)
+dff = pd.DataFrame(imputer.fit_transform(dff), columns=dff.columns)
+
+cat_cols, num_cols, cat_but_car = grab_col_names(df)
+
+
+dff.head(30)
+dff["Income_Category"].unique()
+
+dff["Education_Level"] = dff["Education_Level"].round().astype(int)
+dff["Income_Category"] = dff["Income_Category"].round().astype(int)
+
+
+df.groupby("Total_Relationship_Count")["Months_Inactive_12_mon"].mean()
+df.groupby("Months_Inactive_12_mon")["Total_Relationship_Count"].mean()
 
 
 # yeni değişkenler
