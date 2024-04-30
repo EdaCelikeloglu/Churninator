@@ -299,19 +299,15 @@ dff = pd.DataFrame(imputer.fit_transform(dff), columns=dff.columns)
 cat_cols, num_cols, cat_but_car = grab_col_names(df)
 
 
-dff.head(30)
-dff["Income_Category"].unique()
-
 dff["Education_Level"] = dff["Education_Level"].round().astype(int)
 dff["Income_Category"] = dff["Income_Category"].round().astype(int)
 
 
-df.groupby("Total_Relationship_Count")["Months_Inactive_12_mon"].mean()
-df.groupby("Months_Inactive_12_mon")["Total_Relationship_Count"].mean()
-
-
 # yeni değişkenler
 df.head()
+
+df.groupby("Contacts_Count_12_mon")["Months_Inactive_12_mon"].mean()
+df.groupby("Months_Inactive_12_mon")["Contacts_Count_12_mon"].mean()
 
 labels = ['Young', 'Middle Aged', 'Senior']
 bins = [25, 35, 55, 74]
