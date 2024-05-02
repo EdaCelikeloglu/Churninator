@@ -315,7 +315,7 @@ undersample = CondensedNearestNeighbour(n_neighbors=1)
 X, y = undersample.fit_resample(X, y)
 # summarize the new class distribution
 counter = Counter(y)
-print(counter)
+print(counter) # {1: 1627, 0: 1450}
 
 # Methods that Select Examples to Delete
 
@@ -456,3 +456,5 @@ counter = Counter(y)
 print(counter) # {0: 7190, 1: 1627}
 
 
+# RFE
+df.head()
