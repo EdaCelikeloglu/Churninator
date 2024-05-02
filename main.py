@@ -26,8 +26,6 @@ from matplotlib import pyplot
 from numpy import where
 from sklearn.metrics import classification_report
 
-
-
 warnings.simplefilter(action="ignore")
 
 pd.set_option('display.max_columns', None)
@@ -83,8 +81,6 @@ def grab_col_names(dataframe, cat_th=9, car_th=20):
     print(f"cat_but_car: {len(cat_but_car)}")
     print(f"num_but_car: {len(num_but_cat)}")
     return cat_cols, num_cols, cat_but_car
-
-
 cat_cols, num_cols, cat_but_car = grab_col_names(base)
 
 def outlier_thresholds(dataframe, col_name, q1=0.05, q3=0.95):
@@ -95,14 +91,12 @@ def outlier_thresholds(dataframe, col_name, q1=0.05, q3=0.95):
     low_limit = quartile1 - 1.5 * interquantile_range
     return low_limit, up_limit
 
-
 def check_outlier(dataframe, col_name):
     low_limit, up_limit = outlier_thresholds(dataframe, col_name)
     if dataframe[(dataframe[col_name] > up_limit) | (dataframe[col_name] < low_limit)].any(axis=None):
         return True
     else:
         return False
-
 
 def grab_outliers(dataframe, col_name, index=False):
     low, up = outlier_thresholds(dataframe, col_name)
@@ -116,12 +110,10 @@ def grab_outliers(dataframe, col_name, index=False):
         outlier_index = dataframe[((dataframe[col_name] < low) | (dataframe[col_name] > up))].index
         return outlier_index
 
-
 def replace_with_thresholds(dataframe, variable):
     low_limit, up_limit = outlier_thresholds(dataframe, variable)
     dataframe.loc[(dataframe[variable] < low_limit), variable] = low_limit
     dataframe.loc[(dataframe[variable] > up_limit), variable] = up_limit
-
 
 def cat_summary(dataframe, col_name, plot=False):
     print(pd.DataFrame({col_name: dataframe[col_name].value_counts(),
@@ -130,7 +122,6 @@ def cat_summary(dataframe, col_name, plot=False):
     if plot:
         sns.countplot(x=dataframe[col_name], data=dataframe)
         plt.show(block=True)
-
 
 def num_summary(dataframe, numerical_col, plot=False):
     quantiles = [0.05, 0.10, 0.20, 0.30, 0.40, 0.50, 0.60, 0.70, 0.80, 0.90, 0.95, 0.99]
@@ -141,7 +132,6 @@ def num_summary(dataframe, numerical_col, plot=False):
         plt.xlabel(numerical_col)
         plt.title(numerical_col)
         plt.show(block=True)
-
 
 def one_hot_encoder(dataframe, categorical_cols, drop_first=True):
     dataframe = pd.get_dummies(dataframe, columns=categorical_cols, drop_first=drop_first, dtype=int)
@@ -186,6 +176,110 @@ y_base = base["Target"]
 X_base = base.drop("Target", axis=1)
 
 X_train_base, X_test_base, y_train_base, y_test_base = train_test_split(X_base, y_base, test_size=0.2, random_state=42)
+
+def model_metrics(X_train, y_train, X_test, y_test):
+    print("Base Models....")
+    classifiers = [('LR', LogisticRegression()),
+                   ('KNN', KNeighborsClassifier()),
+                   ("SVC", SVC()),
+                   ("CART", DecisionTreeClassifier()),
+                   ("RF", RandomForestClassifier()),
+                   ('Adaboost', AdaBoostClassifier()),
+                   ('GBM', GradientBoostingClassifier()),
+                   ('XGBoost', XGBClassifier(use_label_encoder=False, eval_metric='logloss')),
+                   ('LightGBM', LGBMClassifier()),
+                   ('CatBoost', CatBoostClassifier(verbose=False))
+                   ]
+
+    for name, classifier in classifiers:
+        model = classifier.fit(X_train, y_train)
+        y_pred = model.predict(X_test)
+
+        # Classification Report
+        report = classification_report(y_test, y_pred)
+        print(f"Classification Report for {name}:")
+        print(report)
+
+model_metrics(X_train_base, y_train_base, X_test_base, y_test_base)
+
+#smotesuz hali
+'''
+Classification Report for LR:
+              precision    recall  f1-score   support
+           0       0.92      0.97      0.95      1699
+           1       0.77      0.59      0.67       327
+    accuracy                           0.91      2026
+   macro avg       0.85      0.78      0.81      2026
+weighted avg       0.90      0.91      0.90      2026
+Classification Report for KNN:
+              precision    recall  f1-score   support
+           0       0.91      0.98      0.94      1699
+           1       0.81      0.52      0.63       327
+    accuracy                           0.90      2026
+   macro avg       0.86      0.75      0.79      2026
+weighted avg       0.90      0.90      0.89      2026
+Classification Report for SVC:
+              precision    recall  f1-score   support
+           0       0.94      0.98      0.96      1699
+           1       0.87      0.70      0.77       327
+    accuracy                           0.93      2026
+   macro avg       0.91      0.84      0.87      2026
+weighted avg       0.93      0.93      0.93      2026
+Classification Report for CART:
+              precision    recall  f1-score   support
+           0       0.96      0.96      0.96      1699
+           1       0.79      0.78      0.78       327
+    accuracy                           0.93      2026
+   macro avg       0.87      0.87      0.87      2026
+weighted avg       0.93      0.93      0.93      2026
+Classification Report for RF:
+              precision    recall  f1-score   support
+           0       0.95      0.99      0.97      1699
+           1       0.93      0.72      0.81       327
+    accuracy                           0.95      2026
+   macro avg       0.94      0.85      0.89      2026
+weighted avg       0.95      0.95      0.94      2026
+Classification Report for Adaboost:
+              precision    recall  f1-score   support
+           0       0.96      0.98      0.97      1699
+           1       0.88      0.79      0.83       327
+    accuracy                           0.95      2026
+   macro avg       0.92      0.88      0.90      2026
+weighted avg       0.95      0.95      0.95      2026
+Classification Report for GBM:
+              precision    recall  f1-score   support
+           0       0.97      0.99      0.98      1699
+           1       0.93      0.83      0.88       327
+    accuracy                           0.96      2026
+   macro avg       0.95      0.91      0.93      2026
+weighted avg       0.96      0.96      0.96      2026
+Classification Report for XGBoost:
+              precision    recall  f1-score   support
+           0       0.97      0.98      0.98      1699
+           1       0.89      0.86      0.87       327
+    accuracy                           0.96      2026
+   macro avg       0.93      0.92      0.92      2026
+weighted avg       0.96      0.96      0.96      2026
+
+Classification Report for LightGBM:
+              precision    recall  f1-score   support
+           0       0.97      0.98      0.98      1699
+           1       0.91      0.87      0.89       327
+    accuracy                           0.96      2026
+   macro avg       0.94      0.92      0.93      2026
+weighted avg       0.96      0.96      0.96      2026
+Classification Report for CatBoost:
+              precision    recall  f1-score   support
+           0       0.98      0.98      0.98      1699
+           1       0.92      0.88      0.90       327
+    accuracy                           0.97      2026
+   macro avg       0.95      0.93      0.94      2026
+weighted avg       0.97      0.97      0.97      2026
+
+
+'''
+
+
 
 counter = Counter(y_train_base)
 print(counter)
@@ -373,26 +467,23 @@ cols_with_unknown = ['Income_Category', "Education_Level"]
 for col in cols_with_unknown:
     df[col] = df[col].apply(lambda x: np.nan if x == 'Unknown' else x)
 
+
 # Encoding işlemleri
 df["Target"] = df.apply(lambda x: 0 if (x["Target"] == "Existing Customer") else 1, axis=1)
-
-df.head()
-df.shape  # (10127, 21)
-
-# Gender
-df["Gender"] = df.apply(lambda x: 1 if (x["Gender"] == "F") else 0, axis=1)
-df["Gender"].unique()
 
 
 # Ordinal encoder
 def ordinal_encoder(dataframe, col):
     edu_cats = ['Uneducated', 'High School', 'College', 'Graduate', 'Post-Graduate', 'Doctorate', np.nan]
     income_cats = ['Less than $40K', '$40K - $60K', '$60K - $80K', '$80K - $120K', '$120K +', np.nan]
+    customer_age_cat = [ 'Young','Middle_Aged', 'Senior']
 
     if col is "Education_Level":
         col_cats = edu_cats
     if col is "Income_Category":
         col_cats = income_cats
+    if col is "Customer_Age_Category":
+        col_cats = customer_age_cat
 
     ordinal_encoder = OrdinalEncoder(categories=[col_cats])  # burada direkt int alamıyorum çünkü NaN'lar mevcut.
     df[col] = ordinal_encoder.fit_transform(df[[col]])
@@ -403,18 +494,34 @@ def ordinal_encoder(dataframe, col):
 
 df = ordinal_encoder(df, "Education_Level")
 df = ordinal_encoder(df, "Income_Category")
+df = ordinal_encoder(df, "Customer_Age_Category")
+
 
 # Yeni değişkenler
-df.head()
-
 df.groupby("Contacts_Count_12_mon")["Months_Inactive_12_mon"].mean()
 df.groupby("Months_Inactive_12_mon")["Contacts_Count_12_mon"].mean()
 
-labels = ['Young', 'Middle Aged', 'Senior']
+labels = ['Young', 'Middle_Aged', 'Senior']
 bins = [25, 35, 55, 74]
 df['Customer_Age_Category'] = pd.cut(df['Customer_Age'], bins=bins, labels=labels)
 
-df.groupby("Card_Category")["Customer_Age_Category"].count()
+
+###
+def combine_categories(df, cat_col1, cat_col2, new_col_name):
+    df[new_col_name] = df[cat_col1].astype(str) + '_' + df[cat_col2].astype(str)
+
+
+combine_categories(df, 'Customer_Age_Category', 'Marital_Status', 'Age_&_Marital')
+combine_categories(df, 'Gender', 'Customer_Age_Category', 'Gender_&_Age')
+combine_categories(df, "Card_Category", "Customer_Age_Category", "Card_&_Age")
+combine_categories(df, "Gender", "FrequencyScore", "Gender_&_Frequency")
+combine_categories(df, "Gender", "MonetaryScore", "Gender_&_Monetary")
+
+
+df["Gender_&_Frequency"].value_counts()
+
+df.groupby("Card_&_Age")["Target"].mean()
+
 
 # kart grubunda yaş kategorilerine bakma
 count_by_card_age_category = df.groupby("Card_Category")["Customer_Age_Category"].value_counts()
@@ -608,8 +715,45 @@ df['Total_Ct_Increased'].value_counts()
 ct_target = df.groupby("Total_Ct_Increased")["Target"].mean()
 amt_target = df.groupby("Total_Amt_Increased")["Target"].mean()
 
+
+# kategori incelemesi
+for col in cat_cols:
+    counts = df[col].value_counts()
+    counts_under_30 = counts[counts < 30]
+    if not counts_under_30.empty:
+        print(counts_under_30)
+
+# Card_Category
+# Platinum    20
+
+# Card_&_Age
+# Platinum_Middle_Aged    19
+# Gold_Young              10
+# Gold_Senior              6
+# Platinum_Senior          1
+
+# Months_Inactive_12_mon
+# 0    29
+
+# platium 20 olduğu içim gold ile birleştiriyoruz:
+df["Card_Category"] = df["Card_Category"].apply(lambda x: "Gold_Platinum" if x == "Platinum" or x == "Gold" else x)
+
+# Months_Inactive_12_mon bunu da 29 olduğu için 0 olanlara 1 yazalım:
+df["Months_Inactive_12_mon"] = df["Months_Inactive_12_mon"].apply(lambda x: 1 if x == 0 else x)
+
+
+# Card & Age de Rare encoding yapalım:
+df["Card_&_Age"] = df["Card_&_Age"].apply(lambda x: "Rare" if df["Card_&_Age"].value_counts()[x] < 30 else x)
+
+df.head()
+
+
 # one-hot encoder
-df = one_hot_encoder(df, ["Marital_Status", "Card_Category", "Customer_Age_Category"], drop_first=True)
+df = one_hot_encoder(df, ["Gender", "Marital_Status", "Card_Category",
+                          "Age_&_Marital", "Gender_&_Age", "Card_&_Age", "Gender_&_Frequency", "Gender_&_Monetary"], drop_first=True)
+
+
+
 
 # Knn imputer
 from sklearn.impute import KNNImputer
@@ -619,6 +763,7 @@ imputer = KNNImputer(n_neighbors=10)
 df = pd.DataFrame(imputer.fit_transform(df), columns=df.columns)
 
 cat_cols, num_cols, cat_but_car = grab_col_names(df)
+
 
 df.head(20)
 
@@ -888,3 +1033,5 @@ def hyperparameter_optimization(X, y, cv=3, scoring="roc_auc"):
 
 
 best_models = hyperparameter_optimization(X, y)
+
+[col for col in df.columns if col not in 'Target']
