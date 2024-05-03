@@ -207,7 +207,7 @@ df.loc[df['Total_Revolving_Bal'] > 2510].value_counts()
 df["Total_Revolving_Bal"].describe().T
 
 
-df.groupby("Target")["Avg_Utilization_Ratio"].mean() # TODO kredisi yükseltilmeyenlerin churn etme oranı daha yüksek (x3.5).
+df.groupby("Target")["Avg_Utilization_Ratio"].mean() # TODO borcu düşük olanların churn etme oranı daha yüksek (x3.5).
 # 0   0.296
 # 1   0.162
 
@@ -369,6 +369,95 @@ cat_cols, num_cols, cat_but_car = grab_col_names(df)
 df.info()
 
 
+# Credit limit - total revolvinng bal = avg open to buy
+# df[["Credit_Limit","Total_Revolving_Bal","Avg_Open_To_Buy"]].head(20)
+#
+# df["fark"] = df["Credit_Limit"] - df["Total_Revolving_Bal"]
+#
+# df[["fark", "Avg_Open_To_Buy"]].head(50)
+
+# total revolving bal / credit limit = avg_utilication_ratio
+# df[["Total_Revolving_Bal","Credit_Limit","Avg_Utilization_Ratio"]].head(20)
+#
+# df["bölüm"] = df["Total_Revolving_Bal"] / df["Credit_Limit"]
+#
+# df[["bölüm", "Avg_Utilization_Ratio"]].head(50)
+
+
+# Scatter plot çizimi
+plt.figure(figsize=(10, 10))
+sns.scatterplot(x='Credit_Limit', y='Total_Revolving_Bal', hue='Income_Category', data=df, s=20)
+plt.xlabel('Credit Limit')
+plt.ylabel('Total Revolving Balance')
+plt.title('Scatter Plot of Total Revolving Balance vs. Credit Limit by Income Category')
+plt.tight_layout()
+plt.show()
+
+
+# Müşterinin yaşını ve bankada geçirdiği süreyi birleştirerek uzun süreli müşteri olup olmadığını gösteren bir değişken oluşturma
+# Ay bilgilerini yıla çevirerek yeni bir sütun oluşturma
+df['Year_on_book'] = df['Months_on_book'] // 12
+df['Year_on_book'].value_counts()
+# Year_on_book
+# 3    5508
+# 2    3115
+# 4     817
+# 1     687
+
+"""rfm skorları ile segmentasyon oluşturma"""
+
+# rfm score oluşturma
+df["RFM_SCORE"] = df['RecencyScore'].astype(str) + df['FrequencyScore'].astype(str) + df['MonetaryScore'].astype(str)
+
+seg_map = {
+        r'[1-2][1-2]': 'Hibernating',
+        r'[1-2][3-4]': 'At Risk',
+        r'[1-2]5': 'Can\'t Loose',
+        r'3[1-2]': 'About to Sleep',
+        r'33': 'Need Attention',
+        r'[3-4][4-5]': 'Loyal Customers',
+        r'41': 'Promising',
+        r'51': 'New Customers',
+        r'[4-5][2-3]': 'Potential Loyalists',
+        r'5[4-5]': 'Champions'
+}
+# segment oluşturma (Recency + Frequency)
+df['Segment'] = df['RecencyScore'].astype(str) + df['FrequencyScore'].astype(str)
+df['Segment'] = df['Segment'].replace(seg_map, regex=True)
+df.head()
+
+cat_cols, num_cols, cat_but_car = grab_col_names(df)
+
+# k-means ile müşteri segmentasyonu öncesi standartlaştırmayı yapmak gerek
+# Min-Max ölçeklendirme
+from sklearn.preprocessing import MinMaxScaler
+
+sc = MinMaxScaler((0,1))
+df[['Total_Trans_Amt','Total_Trans_Ct','Months_Inactive_12_mon']] = sc.fit_transform(df[['Total_Trans_Amt','Total_Trans_Ct','Months_Inactive_12_mon']])
+
+
+from sklearn.cluster import KMeans
+# model fit edildi.
+kmeans = KMeans(n_clusters = 10)
+k_fit = kmeans.fit(df[['Months_Inactive_12_mon','Total_Trans_Ct']])
+# Total_Trans_Amt = Monetary
+# Total_Trans_Ct = Frequency
+# Months_Inactive_12_mon  Recency
+
+# merkezler
+centers = kmeans.cluster_centers_
+
+segments = kmeans.labels_
+df['Cluster'] = segments+1 #kümeler 0'dan başlamasın diye
+df.head()
+
+
+df['RFMSegment'] = np.array(df['Cluster'])
+
+df.groupby(['Cluster','RFMSegment'])['RFMSegment'].count()
+
+
+
 # Encoding:
 dff = df.copy()
 
@@ -466,6 +555,9 @@ df = one_hot_encoder(df, ["Gender",
                           'MonetaryScore',
                           'FrequencyScore'], drop_first=True)
 
+# Gizemin yarattığı ve belki onehot'a girecek kolonlar:
+# 'Year_on_book', "RFM_SCORE", Segment, Cluster, RFMSegment, cluster_no
+
 useless_cols = [col for col in df.columns if df[col].nunique() == 2 and
                 (df[col].value_counts() / len(df) < 0.01).any(axis=None)]
 # df.drop(useless_cols, axis=1, inplace=True)
@@ -491,94 +583,6 @@ for col in df.columns:
             df[col] = df[col].astype(int)
 
 cat_cols, num_cols, cat_but_car = grab_col_names(df)
-
-# Credit limit - total revolvinng bal = avg open to buy
-# df[["Credit_Limit","Total_Revolving_Bal","Avg_Open_To_Buy"]].head(20)
-#
-# df["fark"] = df["Credit_Limit"] - df["Total_Revolving_Bal"]
-#
-# df[["fark", "Avg_Open_To_Buy"]].head(50)
-
-# total revolving bal / credit limit = avg_utilication_ratio
-# df[["Total_Revolving_Bal","Credit_Limit","Avg_Utilization_Ratio"]].head(20)
-#
-# df["bölüm"] = df["Total_Revolving_Bal"] / df["Credit_Limit"]
-#
-# df[["bölüm", "Avg_Utilization_Ratio"]].head(50)
-
-
-# Scatter plot çizimi
-plt.figure(figsize=(10, 10))
-sns.scatterplot(x='Credit_Limit', y='Total_Revolving_Bal', hue='Income_Category', data=df, s=20)
-plt.xlabel('Credit Limit')
-plt.ylabel('Total Revolving Balance')
-plt.title('Scatter Plot of Total Revolving Balance vs. Credit Limit by Income Category')
-plt.tight_layout()
-plt.show()
-
-
-# Müşterinin yaşını ve bankada geçirdiği süreyi birleştirerek uzun süreli müşteri olup olmadığını gösteren bir değişken oluşturma
-# Ay bilgilerini yıla çevirerek yeni bir sütun oluşturma
-df['Year_on_book'] = df['Months_on_book'] // 12
-df['Year_on_book'].value_counts()
-# Year_on_book
-# 3    5508
-# 2    3115
-# 4     817
-# 1     687
-
-
-"""rfm skorları ile segmentasyon oluşturma"""
-
-# rfm score oluşturma
-df["RFM_SCORE"] = df['RecencyScore'].astype(str) + df['FrequencyScore'].astype(str) + df['MonetaryScore'].astype(str)
-
-seg_map = {
-        r'[1-2][1-2]': 'Hibernating',
-        r'[1-2][3-4]': 'At Risk',
-        r'[1-2]5': 'Can\'t Loose',
-        r'3[1-2]': 'About to Sleep',
-        r'33': 'Need Attention',
-        r'[3-4][4-5]': 'Loyal Customers',
-        r'41': 'Promising',
-        r'51': 'New Customers',
-        r'[4-5][2-3]': 'Potential Loyalists',
-        r'5[4-5]': 'Champions'
-}
-# segment oluşturma (Recency + Frequency)
-df['Segment'] = df['RecencyScore'].astype(str) + df['FrequencyScore'].astype(str)
-df['Segment'] = df['Segment'].replace(seg_map, regex=True)
-df.head()
-
-cat_cols, num_cols, cat_but_car = grab_col_names(df)
-
-# k-means ile müşteri segmentasyonu öncesi standartlaştırmayı yapmak gerek
-# Min-Max ölçeklendirme
-from sklearn.preprocessing import MinMaxScaler
-
-sc = MinMaxScaler((0,1))
-df[['Total_Trans_Amt','Total_Trans_Ct','Months_Inactive_12_mon']] = sc.fit_transform(df[['Total_Trans_Amt','Total_Trans_Ct','Months_Inactive_12_mon']])
-
-
-from sklearn.cluster import KMeans
-# model fit edildi.
-kmeans = KMeans(n_clusters = 10)
-k_fit = kmeans.fit(df[['Months_Inactive_12_mon','Total_Trans_Ct']])
-# Total_Trans_Amt = Monetary
-# Total_Trans_Ct = Frequency
-# Months_Inactive_12_mon  Recency
-
-# merkezler
-centers = kmeans.cluster_centers_
-
-segments = kmeans.labels_
-df['Cluster'] = segments+1 #kümeler 0'dan başlamasın diye
-df.head()
-
-
-df['RFMSegment'] = np.array(df['Cluster'])
-
-df.groupby(['Cluster','RFMSegment'])['RFMSegment'].count()
 
 
 # Feature scaling (robust):
@@ -754,6 +758,7 @@ def hyperparameter_optimization(X_train, y_train, X_test, y_test, cv=3, scoring=
 
 hyperparameter_optimization(X_train, y_train, X_test, y_test)
 
+
 ################################
 # Analyzing Model Complexity with Learning Curves (BONUS)
 ################################
@@ -790,4 +795,3 @@ for i in range(len(rf_val_params)):
     val_curve_params(rf_model, X, y, rf_val_params[i][0], rf_val_params[i][1])
 
 rf_val_params[0][1]
-
