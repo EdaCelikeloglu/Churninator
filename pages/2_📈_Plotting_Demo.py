@@ -177,6 +177,15 @@ with col2:
     st.plotly_chart(fig_revolving_bal)
 
 
+# Gelir kategorilerine göre ortalama devir bakiyesi
+fig = px.bar(df, x="Income_Category", y="Total_Revolving_Bal",
+             labels={"Income_Category": "Gelir Kategorisi", "Total_Revolving_Bal": "Ortalama Devir Bakiyesi"},
+             title="Gelir Kategorisine Göre Ortalama Devir Bakiyesi",
+             color="Income_Category", color_discrete_sequence=px.colors.qualitative.Pastel)
+
+# Grafiği görüntüle
+st.plotly_chart(fig, use_container_width=True)
+
 
 
 

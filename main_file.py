@@ -132,6 +132,93 @@ df.drop("CLIENTNUM", axis=1, inplace=True)
 
 cat_cols, num_cols, cat_but_car = grab_col_names(df)
 
+################ CHATGPT BAŞLANGIÇ
+
+from sklearn.neighbors import LocalOutlierFactor
+
+dff = df.copy()
+def remove_outliers_iqr(df, col):
+    q1 = df[col].quantile(0.05)
+    q3 = df[col].quantile(0.95)
+    iqr = q3 - q1
+    lower_bound = q1 - 1.5 * iqr
+    upper_bound = q3 + 1.5 * iqr
+    outliers = df[(df[col] < lower_bound) | (df[col] > upper_bound)].index
+    return outliers
+
+def remove_outliers_lof(df, num_cols):
+    clf = LocalOutlierFactor(n_neighbors=20)
+    clf.fit_predict(df[num_cols])
+
+    df_scores = clf.negative_outlier_factor_
+
+    scores = pd.DataFrame(np.sort(df_scores))
+    scores.plot(stacked=True, xlim=[0, 100], style='.-')
+    plt.show()
+
+    return df_scores
+
+th = np.sort(df_scores)[25]
+df[df_scores < th].drop(axis=0, labels=df[df_scores < th].index)
+
+cat_cols, num_cols, cat_but_car = grab_col_names(df)
+
+# Remove outliers using IQR
+iqr_outliers = []
+for col in num_cols:
+    outliers = remove_outliers_iqr(df, col)
+    iqr_outliers.extend(outliers)
+
+# Replace outliers with thresholds using IQR
+for col in num_cols:
+    outliers = remove_outliers_iqr(df, col)
+    df.loc[outliers, col] = df[col].median()  # Replace outliers with median
+
+cat_cols, num_cols, cat_but_car = grab_col_names(df)
+
+
+# Remove outliers using LOF
+lof_outliers = remove_outliers_lof(df, num_cols)
+
+# Plot LOF scores
+clf = LocalOutlierFactor(n_neighbors=20)
+df_scores = clf.negative_outlier_factor_
+
+
+# Remove outliers detected by LOF
+lof_outliers = df[df_scores == -1].index
+df_cleaned = df.drop(lof_outliers)
+
+cat_cols, num_cols, cat_but_car = grab_col_names(df)
+
+# Sadece IQR:
+len(iqr_outliers) # 40
+# [2, 4, 7, 8, 12, 46, 47, 58, 154, 219, 284, 466, 658, 773, 841, 1219, 1, 2, 3, 4, 12, 30, 68, 91, 113, 131, 146, 158, 162, 167, 190, 239, 269, 280, 366, 757, 773, 805, 1095, 2510]
+
+# Sadece lof:
+len(lof_outliers) # 101
+
+aynı_indexler = [item for item in iqr_outliers if item in lof_outliers]
+len(aynı_indexler) # sadece 158. index var.
+
+### şimdi sırayla yapalım. önce iqr sonra lof
+len(lof_outliers) # 101
+
+### şimdi önce lof sonra iqr
+len(iqr_outliers) # 40
+# [2, 4, 7, 8, 12, 46, 47, 58, 154, 219, 284, 466, 658, 773, 841, 1219, 1, 2, 3, 4, 12, 30, 68, 91, 113, 131, 146, 158, 162, 167, 190, 239, 269, 280, 366, 757, 773, 805, 1095, 2510]
+
+
+
+# Output the index values of outliers removed by each method
+print("Outliers removed by IQR method:")
+print(iqr_outliers)
+print("\nOutliers removed by LOF method:")
+print(lof_outliers)
+
+
+################ CHATGPT BİTİŞ
+
 # Outlier temizleme (IQR ve LOF):
 # IQR
 for col in num_cols:
@@ -406,8 +493,12 @@ df['Year_on_book'].value_counts()
 
 """rfm skorları ile segmentasyon oluşturma"""
 
+df['RecencyScore'] = df['RecencyScore'].astype(int)
+
 # rfm score oluşturma
 df["RFM_SCORE"] = df['RecencyScore'].astype(str) + df['FrequencyScore'].astype(str) + df['MonetaryScore'].astype(str)
+
+df[["RFM_SCORE", "RecencyScore","FrequencyScore", "MonetaryScore" ]].head()
 
 seg_map = {
         r'[1-2][1-2]': 'Hibernating',
@@ -421,10 +512,11 @@ seg_map = {
         r'[4-5][2-3]': 'Potential Loyalists',
         r'5[4-5]': 'Champions'
 }
+
 # segment oluşturma (Recency + Frequency)
 df['Segment'] = df['RecencyScore'].astype(str) + df['FrequencyScore'].astype(str)
 df['Segment'] = df['Segment'].replace(seg_map, regex=True)
-df.head()
+df['Segment'].head()
 
 cat_cols, num_cols, cat_but_car = grab_col_names(df)
 
@@ -433,13 +525,13 @@ cat_cols, num_cols, cat_but_car = grab_col_names(df)
 from sklearn.preprocessing import MinMaxScaler
 
 sc = MinMaxScaler((0,1))
-df[['Total_Trans_Amt','Total_Trans_Ct','Months_Inactive_12_mon']] = sc.fit_transform(df[['Total_Trans_Amt','Total_Trans_Ct','Months_Inactive_12_mon']])
+df[['Total_Trans_Amt','Total_Trans_Ct','Days_Inactive_Last_Year']] = sc.fit_transform(df[['Total_Trans_Amt','Total_Trans_Ct','Days_Inactive_Last_Year']])
 
 
 from sklearn.cluster import KMeans
 # model fit edildi.
 kmeans = KMeans(n_clusters = 10)
-k_fit = kmeans.fit(df[['Months_Inactive_12_mon','Total_Trans_Ct']])
+k_fit = kmeans.fit(df[['Days_Inactive_Last_Year','Total_Trans_Ct']])
 # Total_Trans_Amt = Monetary
 # Total_Trans_Ct = Frequency
 # Months_Inactive_12_mon  Recency
@@ -599,7 +691,7 @@ ssd = []
 K = range(1,30)
 
 for k in K:
-    kmeans = KMeans(n_clusters = k).fit(df[['Months_Inactive_12_mon','Total_Trans_Ct','Total_Trans_Amt']])
+    kmeans = KMeans(n_clusters = k).fit(df[['Days_Inactive_Last_Year','Total_Trans_Ct','Total_Trans_Amt']])
     ssd.append(kmeans.inertia_) #inertia her bir k değeri için ssd değerini bulur.
 
 plt.plot(K, ssd, "bx-")
@@ -609,7 +701,7 @@ plt.title("Elbow method for Optimum number of clusters")
 from yellowbrick.cluster import KElbowVisualizer
 kmeans = KMeans()
 visu = KElbowVisualizer(kmeans, k = (2,20))
-visu.fit(df[['Months_Inactive_12_mon','Total_Trans_Ct','Total_Trans_Amt']])
+visu.fit(df[['Days_Inactive_Last_Year','Total_Trans_Ct','Total_Trans_Amt']])
 visu.poof();
 # k = 6 çıktı
 
@@ -618,7 +710,7 @@ visu.poof();
 # Total_Trans_Ct = Frequency
 # Months_Inactive_12_mon  Recency
 # yeni optimum kümse sayısı ile model fit edilmiştir.
-kmeans = KMeans(n_clusters = 5).fit(df[['Months_Inactive_12_mon','Total_Trans_Ct','Total_Trans_Amt']])
+kmeans = KMeans(n_clusters = 5).fit(df[['Days_Inactive_Last_Year','Total_Trans_Ct','Total_Trans_Amt']])
 kumeler = kmeans.labels_
 pd.DataFrame({"Customer ID": df.index, "Kumeler": kumeler})
 
