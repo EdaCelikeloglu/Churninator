@@ -166,8 +166,36 @@ labels = ['Young', 'Middle_Aged', 'Senior']
 bins = [25, 35, 55, 74]
 df['Customer_Age_Category'] = pd.cut(df['Customer_Age'], bins=bins, labels=labels)
 
+df["Days_Inactive_Last_Year"] = df["Months_Inactive_12_mon"] * 30
+
+df = df.sort_values(by="Days_Inactive_Last_Year", ascending=True)
+df.reset_index(drop=True, inplace=True)
+
+
+# Yeni bir "Recency" sütunu oluştur
+df['RecencyScore'] = np.nan
+
+# İlk 2025 satırı 5 olarak ayarla
+df.loc[:2024, 'RecencyScore'] = 5
+
+# Sonraki 2025 satırı 4 olarak ayarla
+df.loc[2025:4049, 'RecencyScore'] = 4
+
+# Sonraki 2027 satırı 3 olarak ayarla
+df.loc[4050:6076, 'RecencyScore'] = 3
+
+# Sonraki 2025 satırı 2 olarak ayarla
+df.loc[6077:8101, 'RecencyScore'] = 2
+
+# Kalan 2025 satırı 1 olarak ayarla
+df.loc[8102:, 'RecencyScore'] = 1
+
+
 df["MonetaryScore"] = pd.qcut(df["Total_Trans_Amt"], 5, labels=[1, 2, 3, 4, 5])
 df["FrequencyScore"] = pd.qcut(df["Total_Trans_Ct"], 5, labels=[1, 2, 3, 4, 5])
+# # Total_Trans_Amt = Monetary
+# # Total_Trans_Ct = Frequency
+# # Days_Inactive_12_mon = Recency
 
 combine_categories(df, 'Customer_Age_Category', 'Marital_Status', 'Age_&_Marital')
 combine_categories(df, 'Gender', 'Customer_Age_Category', 'Gender_&_Age')
@@ -218,8 +246,6 @@ df = one_hot_encoder(df, ["Gender", "Marital_Status", "Card_Category",
                           "Age_&_Marital", "Gender_&_Age", "Card_&_Age", "Gender_&_Frequency", "Gender_&_Monetary"], drop_first=True)
 
 
-
-
 # Nan doldurma:
 imputer = KNNImputer(n_neighbors=10)
 df = pd.DataFrame(imputer.fit_transform(df), columns=df.columns)
@@ -238,13 +264,140 @@ for col in df.columns:
 
 cat_cols, num_cols, cat_but_car = grab_col_names(df)
 
+# Credit limit - total revolvinng bal = avg open to buy
+# df[["Credit_Limit","Total_Revolving_Bal","Avg_Open_To_Buy"]].head(20)
+#
+# df["fark"] = df["Credit_Limit"] - df["Total_Revolving_Bal"]
+#
+# df[["fark", "Avg_Open_To_Buy"]].head(50)
+
+# total revolving bal / credit limit = avg_utilication_ratio
+# df[["Total_Revolving_Bal","Credit_Limit","Avg_Utilization_Ratio"]].head(20)
+#
+# df["bölüm"] = df["Total_Revolving_Bal"] / df["Credit_Limit"]
+#
+# df[["bölüm", "Avg_Utilization_Ratio"]].head(50)
+
+
+# Scatter plot çizimi
+plt.figure(figsize=(10, 10))
+sns.scatterplot(x='Credit_Limit', y='Total_Revolving_Bal', hue='Income_Category', data=df, s=20)
+plt.xlabel('Credit Limit')
+plt.ylabel('Total Revolving Balance')
+plt.title('Scatter Plot of Total Revolving Balance vs. Credit Limit by Income Category')
+plt.tight_layout()
+plt.show()
+
+
+# Müşterinin yaşını ve bankada geçirdiği süreyi birleştirerek uzun süreli müşteri olup olmadığını gösteren bir değişken oluşturma
+# Ay bilgilerini yıla çevirerek yeni bir sütun oluşturma
+df['Year_on_book'] = df['Months_on_book'] // 12
+df['Year_on_book'].value_counts()
+# Year_on_book
+# 3    5508
+# 2    3115
+# 4     817
+# 1     687
+
+
+"""rfm skorları ile segmentasyon oluşturma"""
+
+# rfm score oluşturma
+df["RFM_SCORE"] = df['RecencyScore'].astype(str) + df['FrequencyScore'].astype(str) + df['MonetaryScore'].astype(str)
+
+seg_map = {
+        r'[1-2][1-2]': 'Hibernating',
+        r'[1-2][3-4]': 'At Risk',
+        r'[1-2]5': 'Can\'t Loose',
+        r'3[1-2]': 'About to Sleep',
+        r'33': 'Need Attention',
+        r'[3-4][4-5]': 'Loyal Customers',
+        r'41': 'Promising',
+        r'51': 'New Customers',
+        r'[4-5][2-3]': 'Potential Loyalists',
+        r'5[4-5]': 'Champions'
+}
+# segment oluşturma (Recency + Frequency)
+df['Segment'] = df['RecencyScore'].astype(str) + df['FrequencyScore'].astype(str)
+df['Segment'] = df['Segment'].replace(seg_map, regex=True)
+df.head()
+
+cat_cols, num_cols, cat_but_car = grab_col_names(df)
+
+# k-means ile müşteri segmentasyonu öncesi standartlaştırmayı yapmak gerek
+# Min-Max ölçeklendirme
+from sklearn.preprocessing import MinMaxScaler
+
+sc = MinMaxScaler((0,1))
+df[['Total_Trans_Amt','Total_Trans_Ct','Months_Inactive_12_mon']] = sc.fit_transform(df[['Total_Trans_Amt','Total_Trans_Ct','Months_Inactive_12_mon']])
+
+
+from sklearn.cluster import KMeans
+# model fit edildi.
+kmeans = KMeans(n_clusters = 10)
+k_fit = kmeans.fit(df[['Months_Inactive_12_mon','Total_Trans_Ct']])
+# Total_Trans_Amt = Monetary
+# Total_Trans_Ct = Frequency
+# Months_Inactive_12_mon  Recency
+
+# merkezler
+centers = kmeans.cluster_centers_
+
+segments = kmeans.labels_
+df['Cluster'] = segments+1 #kümeler 0'dan başlamasın diye
+df.head()
+
+
+df['RFMSegment'] = np.array(df['Cluster'])
+
+df.groupby(['Cluster','RFMSegment'])['RFMSegment'].count()
+
+
 # Feature scaling (robust):
 rs = RobustScaler()
 df[num_cols] = rs.fit_transform(df[num_cols])
 
+df["Cluster"].value_counts()
+
+
+#liste olusturduk.
+ssd = []
+
+K = range(1,30)
+
+for k in K:
+    kmeans = KMeans(n_clusters = k).fit(df[['Months_Inactive_12_mon','Total_Trans_Ct','Total_Trans_Amt']])
+    ssd.append(kmeans.inertia_) #inertia her bir k değeri için ssd değerini bulur.
+
+plt.plot(K, ssd, "bx-")
+plt.xlabel("Distance Residual Sums Versus Different k Values")
+plt.title("Elbow method for Optimum number of clusters")
+
+from yellowbrick.cluster import KElbowVisualizer
+kmeans = KMeans()
+visu = KElbowVisualizer(kmeans, k = (2,20))
+visu.fit(df[['Months_Inactive_12_mon','Total_Trans_Ct','Total_Trans_Amt']])
+visu.poof();
+# k = 6 çıktı
+
+
+# Total_Trans_Amt = Monetary
+# Total_Trans_Ct = Frequency
+# Months_Inactive_12_mon  Recency
+# yeni optimum kümse sayısı ile model fit edilmiştir.
+kmeans = KMeans(n_clusters = 5).fit(df[['Months_Inactive_12_mon','Total_Trans_Ct','Total_Trans_Amt']])
+kumeler = kmeans.labels_
+pd.DataFrame({"Customer ID": df.index, "Kumeler": kumeler})
+
+# Cluster_no 0'dan başlamaktadır. Bunun için 1 eklenmiştir.
+df["cluster_no"] = kumeler
+df["cluster_no"] = df["cluster_no"] + 1
+
+df.head()
+
+
 
 # Korelasyon Heatmap:
-
 def high_coralated_cols(dataframe, plot=False, corr_th=0.90):
     corr = dataframe[num_cols].corr()
     cor_matrix = corr.abs()
@@ -371,4 +524,41 @@ def hyperparameter_optimization(X_train, y_train, X_test, y_test, cv=3, scoring=
     return best_models
 
 hyperparameter_optimization(X_train, y_train, X_test, y_test)
+
+################################
+# Analyzing Model Complexity with Learning Curves (BONUS)
+################################
+def val_curve_params(model, X, y, param_name, param_range, scoring="roc_auc", cv=10):
+    train_score, test_score = validation_curve(
+        model, X=X, y=y, param_name=param_name, param_range=param_range, scoring=scoring, cv=cv)
+
+    mean_train_score = np.mean(train_score, axis=1)
+    mean_test_score = np.mean(test_score, axis=1)
+
+    plt.plot(param_range, mean_train_score,
+             label="Training Score", color='b')
+
+    plt.plot(param_range, mean_test_score,
+             label="Validation Score", color='g')
+
+    plt.title(f"Validation Curve for {type(model).__name__}")
+    plt.xlabel(f"Number of {param_name}")
+    plt.ylabel(f"{scoring}")
+    plt.tight_layout()
+    plt.legend(loc='best')
+    plt.show(block=True)
+
+
+rf_val_params = [["max_depth", [5, 8, 15, 20, 30, None]],
+                 ["max_features", [3, 5, 7, "auto"]],
+                 ["min_samples_split", [2, 5, 8, 15, 20]],
+                 ["n_estimators", [10, 50, 100, 200, 500]]]
+
+
+rf_model = RandomForestClassifier(random_state=17)
+
+for i in range(len(rf_val_params)):
+    val_curve_params(rf_model, X, y, rf_val_params[i][0], rf_val_params[i][1])
+
+rf_val_params[0][1]
 
