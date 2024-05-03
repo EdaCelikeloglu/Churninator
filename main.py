@@ -45,19 +45,19 @@ base = pd.read_csv("BankChurners.csv")
 # Income_Category: müşterinin hangi gelir kategorisinde olduğu bilgisi ($60K - $80K, Less than $40K, $80K - $120K, $40K - $60K, $120K +, Unknown)
 # Card_Category: müşterinin sahip olduğu kartın türü (Blue, Silver, Gold, Platinum)
 # Months_on_book: müşteri kaç aydır bu bankada
-# Total_Relationship_Count: Total no. of products held by the customer. yani müşterinin aynı bankadan hem kredi kartı
+# * Total_Relationship_Count: Total no. of products held by the customer. yani müşterinin aynı bankadan hem kredi kartı
 #                           hem banka kartı ve farklı tipte hesapları olabilir savings account gibi
-# Months_Inactive_12_mon: müşterinin son 12 ayda kaç ay inactive kaldığının sayısı
+# * Months_Inactive_12_mon: müşterinin son 12 ayda kaç ay inactive kaldığının sayısı
 # Contacts_Count_12_mon: müşteriyle son 12 ayda kurulan iletişim sayısı
 # Credit_Limit: müşterinin kredi kartının limiti
-# Total_Revolving_Bal: devir bakiyesi (Bu terim, müşterinin ödeme yapması gereken ancak henüz ödenmemiş olan borç
-# #                     miktarını ifade eder. Yani, müşterinin kredi kartı hesabında biriken ve henüz ödenmemiş olan borç tutarıdır.)
+# * Total_Revolving_Bal: devir bakiyesi (Bu terim, müşterinin ödeme yapması gereken ancak henüz ödenmemiş olan borç
+# #                    miktarını ifade eder. Yani, müşterinin kredi kartı hesabında biriken ve henüz ödenmemiş olan borç tutarıdır.)
 # Avg_Open_To_Buy:  müşterinin ulaşabileceği maksimum kredi miktarının son 12 aydaki ortalaması
 # Total_Amt_Chng_Q4_Q1: Change in Transaction Amount (Q4 over Q1)
 # Total_Trans_Amt: son 12 aydaki tüm transaction'lardan gelen miktar
-# Total_Trans_Ct: son 12 aydaki toplam transaction sayısı
+# * Total_Trans_Ct: son 12 aydaki toplam transaction sayısı
 # Total_Ct_Chng_Q4_Q1: Change in Transaction Count (Q4 over Q1)
-# Avg_Utilization_Ratio: müşterinin mevcut kredi kartı borçlarının kredi limitine oranını ifade eder
+# * Avg_Utilization_Ratio: müşterinin mevcut kredi kartı borçlarının kredi limitine oranını ifade eder
 
 # Fonksiyonlarımız
 def grab_col_names(dataframe, cat_th=9, car_th=20):
