@@ -161,6 +161,94 @@ for col in cols_with_unknown:
     df[col] = df[col].apply(lambda x: np.nan if x == 'Unknown' else x)
 
 
+# maaşa göre kredi kartı türü
+# kart türüne göre kredi limitleri
+df.groupby("Income_Category")["Card_Category"].value_counts()
+df.groupby("Card_Category")["Credit_Limit"].mean()
+df.groupby("Card_Category")["Target"].mean()
+df["Total_Relationship_Count"].value_counts()
+df.groupby("Total_Relationship_Count")["Target"].mean()
+# 1   0.256
+# 2   0.278
+# 3   0.174
+# 4   0.118
+# 5   0.120
+# 6   0.105
+# TODO churn etmesi beklenen müşteriye, bankanın başka ürünlerinden kampanyalı satış yapmaya çalışmalıyız.
+
+df.groupby("Months_Inactive_12_mon")["Target"].mean()
+# 0   0.517
+# 1   0.045
+# 2   0.154
+# 3   0.215
+# 4   0.299
+# 5   0.180
+# 6   0.153
+# TODO yeni gelenler risk mi oluşturuyor?
+
+df.groupby("Months_Inactive_12_mon")["Total_Trans_Amt"].mean()
+df.groupby("Months_Inactive_12_mon")["Total_Trans_Ct"].mean()
+df["Total_Trans_Ct"].describe().T
+df.loc[df["Total_Trans_Ct"] == 139]
+df["Total_Trans_Amt"].describe().T
+df.loc[df["Total_Trans_Amt"] == 510]
+
+df.groupby("Target")["Avg_Utilization_Ratio"].mean() # TODO
+# 0   0.296
+# 1   0.162
+
+df.groupby("Target")["Total_Revolving_Bal"].mean() # TODO
+# 0   1256.604
+# 1    672.823
+
+
+df.groupby("Income_Category")["Total_Revolving_Bal"].mean()
+df.groupby("Income_Category")["Total_Trans_Amt"].mean()
+# TODO 1. Çekilen kredi miktarı da, yapılan harcama miktarı da müşteri gelirlerine kıyasla stabil.
+# TODO 2. Bu da, düşük gelirli müşterilerin, Avg_Utilization_Ratio'sunun yani borç ödeme zorluğu oranını artırıyor.
+# TODO 3. Borcu olan müşteriler, bankadan ayrılamıyor.
+# TODO 4. Müşterileri bankada tutmak için A) ürün sat, B) borcunu artır -- mesela kk limitini artırmayı teklif et.
+
+df['Total_Amt_Increased'] = np.where((df['Total_Amt_Chng_Q4_Q1'] > 0) & (df['Total_Amt_Chng_Q4_Q1'] < 1), 0, 1)
+
+df["Credit_increased"] = np.where((df["Credit_Limit"] > df["Avg_Open_To_Buy"]), 1, np.where((df["Credit_Limit"] == df["Avg_Open_To_Buy"]), 0, np.where((df["Credit_Limit"] < df["Avg_Open_To_Buy"]), -1, "ERROR"))).astype(int)
+df["Credit_increased"].value_counts()
+df["Avg_Utilization_Ratio"].describe().T
+df.loc[df["Avg_Utilization_Ratio"] == 0].head()
+
+df.groupby("Credit_increased")["Avg_Utilization_Ratio"].mean() # TODO borcu olmayanların kk limitini yükseltmemişler. Borcu olanların kk limitini yükseltmişler.
+# peki borcu olmayanların churn etme olasılığı kaçtı?
+df.groupby("Target")["Avg_Utilization_Ratio"].mean()
+# borcu olan müşteri bankada kalıyor. borcu olan müşterinin (bankada kalacak müşterinin) kk limitini yükseltiyorlar.
+df.groupby("Credit_increased")["Target"].mean()
+# TODO kredisi yükseltilmeyenlerin churn etme oranı daha yüksek (x3.5).
+
+# TODO Şirket mottosu: "Biz borçlunun yanındayız!"
+
+df.groupby("Credit_increased")["Total_Revolving_Bal"].mean()
+df.groupby("Total_Relationship_Count")["Credit_increased"].mean()
+df.head()
+
+df["Important_client_score"] = df["Total_Relationship_Count"] * (df["Months_on_book"] / 12)
+df["Important_client_score"].describe().T
+num_summary(df, "Important_client_score", plot=True)
+
+df["Avg_Trans_Amt"] = df["Total_Trans_Amt"] / df['Total_Trans_Ct']
+df.groupby("Target")["Important_client_score"].mean()
+# 0   11.701
+# 1    9.863
+# TODO Banka, önemli müşterileri tutmakta başarılı!
+
+# Chatgpt önerileri ve tanımlar:
+# Credit_Limit_Change: Change in credit limit over time might indicate changes in financial status.
+#       Credit_increased
+# Contact_Frequency: Number of contacts with the bank might indicate dissatisfaction or queries.
+# TODO bunu yarat: Utilization_Pattern: Pattern of credit card utilization (e.g., frequent small transactions vs. occasional large ones).
+# Life_Stage: Combining age, marital status, and dependent count to capture life stage transitions.
+# Credit_Usage_Trend: Trend in credit card usage over the past few months (increasing, decreasing, or stable).
+#       df["Total_Ct_Increased"].value_counts()
+
+
 # Yeni değişkenler üretme:
 labels = ['Young', 'Middle_Aged', 'Senior']
 bins = [25, 35, 55, 74]
@@ -175,12 +263,95 @@ combine_categories(df, "Card_Category", "Customer_Age_Category", "Card_&_Age")
 combine_categories(df, "Gender", "FrequencyScore", "Gender_&_Frequency")
 combine_categories(df, "Gender", "MonetaryScore", "Gender_&_Monetary")
 
+df["May_Marry"] = np.where((df["Age_&_Marital"] == "Young_Single") & (df['Dependent_count'] == 0), 1, 0)
+df["May_Marry"].value_counts()
+df.groupby("May_Marry")["Avg_Trans_Amt"].mean()
 
 df['Total_Amt_Increased'] = np.where((df['Total_Amt_Chng_Q4_Q1'] > 0) & (df['Total_Amt_Chng_Q4_Q1'] < 1), 0, 1)
 df['Total_Ct_Increased'] = np.where((df['Total_Ct_Chng_Q4_Q1'] > 0) & (df['Total_Ct_Chng_Q4_Q1'] < 1), 0, 1)
+df['Total_Ct_Chng_Q4_Q1'].describe().T
+df.loc[df["Total_Ct_Chng_Q4_Q1"] > 2]
 
+df.loc[(df['Total_Revolving_Bal'] > 2500)].count()
+(df.loc[(df['Total_Revolving_Bal'] > 2500)])["Target"].mean()
+
+df.shape
+529/10127
+
+# İşlem sayısı ve miktarına göre personalar:
+# İşlem sayısı aynı kalıp, harcama miktarı artanlar: (belki daha çok para kazanmaya başlamışlardır)(TODO kredi limiti ile incele)
+df.loc[(df["Total_Ct_Chng_Q4_Q1"] == 1) & (df["Total_Amt_Chng_Q4_Q1"] > 1), "Ct_vs_Amt"] = "Same_ct_inc_amt"
+# boş
+df.loc[(df["Total_Ct_Chng_Q4_Q1"] == 1) & (df["Total_Amt_Chng_Q4_Q1"] == 1), "Ct_vs_Amt"] = "Same_ct_same_amt" # BOŞ
+# İşlem sayısı aynı kalıp, harcama miktarı azalanlar: (harcamalardan mı kısıyorlar? belki ihtiyaçları olanları almışlardır.) TODO May_Marry ile incele)
+df.loc[(df["Total_Ct_Chng_Q4_Q1"] == 1) & (df["Total_Amt_Chng_Q4_Q1"] < 1), "Ct_vs_Amt"] = "Same_ct_dec_amt"
+# işlem sayısı da, miktarı da artmış (bizi sevindiren müşteri <3 )
+df.loc[(df["Total_Ct_Chng_Q4_Q1"] > 1) & (df["Total_Amt_Chng_Q4_Q1"] > 1), "Ct_vs_Amt"] = "Inc_ct_inc_amt"
+# BOŞ İşlem sayısı artmasına rağmen, harcama miktarı aynı kalanlar: (aylık ortalama harcama azalıyor)
+df.loc[(df["Total_Ct_Chng_Q4_Q1"] > 1) & (df["Total_Amt_Chng_Q4_Q1"] == 1), "Ct_vs_Amt"] = "Inc_ct_same_amt" # BOŞ
+# İşlem sayısı artmış ama miktar azalmış. Yani daha sık, ama daha küçük alışverişler yapıyor. Bunlar düşük income grubuna aitse bankayı mutlu edecek bir davranış.
+df.loc[(df["Total_Ct_Chng_Q4_Q1"] > 1) & (df["Total_Amt_Chng_Q4_Q1"] < 1), "Ct_vs_Amt"] = "Inc_ct_dec_amt"
+#(df.loc[(df["Total_Ct_Chng_Q4_Q1"] > 1) & (df["Total_Amt_Chng_Q4_Q1"] < 1)]).groupby("Income_Category").count() # Evet, düşük income grubuna ait.
+# İşlem sayısı azalmış ama daha büyük miktarlarda harcama yapılıyor:
+df.loc[(df["Total_Ct_Chng_Q4_Q1"] < 1) & (df["Total_Amt_Chng_Q4_Q1"] > 1), "Ct_vs_Amt"] = "Dec_ct_inc_amt"
+# İşlem sayısı azalmış, toplam miktar aynı kalmış (yani ortalama harcama artmış):
+df.loc[(df["Total_Ct_Chng_Q4_Q1"] < 1) & (df["Total_Amt_Chng_Q4_Q1"] == 1), "Ct_vs_Amt"] = "Dec_ct_same_amt"
+# İşlem sayısı azalmış, miktar da azalmış. Churn eder mi acaba?
+df.loc[(df["Total_Ct_Chng_Q4_Q1"] < 1) & (df["Total_Amt_Chng_Q4_Q1"] < 1), "Ct_vs_Amt"] = "Dec_ct_dec_amt"
+# (df.loc[(df["Total_Ct_Chng_Q4_Q1"] < 1) & (df["Total_Amt_Chng_Q4_Q1"] < 1)])["Target"].mean() # 0.17
+df.head()
+
+df.groupby("Ct_vs_Amt")["Target"].count()
+df.loc[df["Total_Amt_Chng_Q4_Q1"] == 1]
+
+# Total_Ct_Chng_Q4_Q1= Q4/Q1 olduğuna göre, bunun 0 olduğu yerlerde Q4 = 0, yani recency'si 3 ay olur.
+df.loc[df["Total_Ct_Chng_Q4_Q1"]==0]
+
+df["Contacts_Count_12_mon"].describe().T
+df.groupby("Contacts_Count_12_mon")["Target"].mean() # 6'ların hepsi churn. Yükseldikçe churn olasılığı artıyor.
+# 0   0.018
+# 1   0.072
+# 2   0.125
+# 3   0.201
+# 4   0.226
+# 5   0.335
+# 6   1.000
+
+
+# Personalar
+df["Affluent_criteria"] = (df['Income_Category'] == '$120K +').astype(int)
+df["Budget_criteria"] = ((df['Income_Category'] == 'Less than $40K') & (df['Education_Level'].isin(['High School', 'College']))).astype(int)
+df["Young_prof_criteria"] = ((df['Customer_Age'] <= 30) & (df['Education_Level'].isin(['College', 'Graduate']))).astype(int)
+df["Family_criteria"] = (df['Dependent_count'] >= 3).astype(int)
+df["Credit_builder_criteria"] = (df['Credit_Limit'] < 2500).astype(int)  # This threshold is chosen to include individuals with credit limits in the lower percentiles of the distribution, which may indicate a need for credit-building strategies or entry-level credit products.
+df["Digital_criteria"] = (df['Contacts_Count_12_mon'] == 0).astype(int)
+df["High_net_worth_individual"] = ((df['Income_Category'] == '$120K +') & (df['Total_Trans_Amt'] > 5000)).astype(int)
+df["Rewards_maximizer"] = ((df['Total_Trans_Amt'] > 10000) & (df['Total_Revolving_Bal'] == 0)).astype(int) # For the Rewards_maximizer column, the threshold for Total_Trans_Amt is also set at $10000. Since rewards maximizers are individuals who strategically maximize rewards and benefits from credit card usage, it's reasonable to expect that they engage in higher levels of spending. Therefore, the threshold of $10000 for Total_Trans_Amt appears appropriate for identifying rewards maximizers, considering that it captures individuals with relatively high spending habits.
+
+# Total_Trans_Amt threshold'larını inceleyip üsttekiler için ayarlama yapalım:
+(df.loc[df['Total_Trans_Amt'] > 10000]).groupby("Income_Category")["Customer_Age"].mean()
+(df.loc[df['Total_Trans_Amt'] > 10000]).groupby("Income_Category").count()
+df['Total_Trans_Amt'].describe().T
+
+df.head()
+
+# TODO Total_dependent_count fazla olanlara ek kart öner.
+
+
+df.groupby("Income_Category")["Avg_Open_To_Buy"].mean()
+df.groupby("Income_Category")["Credit_Limit"].mean()
+["Credit_Limit"]
+"Avg_Open_To_Buy"
+
+df["Product_by_Year"] = df["Total_Relationship_Count"] / (df["Months_on_book"] / 12)
+df["Product_by_Year"].describe().T
+num_summary(df, "Product_by_Year", plot=True)
+
+
+df.head(20)
+df.shape
 cat_cols, num_cols, cat_but_car = grab_col_names(df)
-
+df.info()
 
 # Encoding:
 
@@ -188,6 +359,7 @@ cat_cols, num_cols, cat_but_car = grab_col_names(df)
 df["Card_Category"] = df["Card_Category"].apply(lambda x: "Gold_Platinum" if x == "Platinum" or x == "Gold" else x)
 df["Months_Inactive_12_mon"] = df["Months_Inactive_12_mon"].apply(lambda x: 1 if x == 0 else x)
 df["Card_&_Age"] = df["Card_&_Age"].apply(lambda x: "Rare" if df["Card_&_Age"].value_counts()[x] < 30 else x)
+df["Card_&_Age"].value_counts()
 
 # Ordinal encoding:
 def ordinal_encoder(dataframe, col):
@@ -195,11 +367,11 @@ def ordinal_encoder(dataframe, col):
     income_cats = ['Less than $40K', '$40K - $60K', '$60K - $80K', '$80K - $120K', '$120K +', np.nan]
     customer_age_cat = [ 'Young','Middle_Aged', 'Senior']
 
-    if col is "Education_Level":
+    if col == "Education_Level":
         col_cats = edu_cats
-    if col is "Income_Category":
+    if col == "Income_Category":
         col_cats = income_cats
-    if col is "Customer_Age_Category":
+    if col == "Customer_Age_Category":
         col_cats = customer_age_cat
 
     ordinal_encoder = OrdinalEncoder(categories=[col_cats])  # burada direkt int alamıyorum çünkü NaN'lar mevcut.
