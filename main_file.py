@@ -261,6 +261,7 @@ df.groupby("Total_Relationship_Count")["Target"].mean()
 # 6   0.105
 # TODO churn etmesi beklenen müşteriye, bankanın başka ürünlerinden kampanyalı satış yapmaya çalışmalıyız.
 
+
 df.groupby("Months_Inactive_12_mon")["Target"].mean()
 # 0   0.517
 # 1   0.045
@@ -276,6 +277,8 @@ df.groupby("Target")["Months_on_book"].mean()
 df["Months_on_book"].value_counts()
 df["Months_on_book"].describe().T
 # TODO bu aşağıdakinden Gizem de yapmış, pushlayınca onunkini alırız.
+# Eda says: ben grafikleri çizdirebilmek için buradaki değişiklikleri plottingdemoya aktarmam gerekiyor ama anlamlı değil demişsiniz
+# o yüzden bu on book cat değişkenini almadım eğer almam gerekiyorsa bana söyleyin bunu please
 df["On_book_cat"] = np.where((df["Months_on_book"] < 12), "<1_year", np.where((df["Months_on_book"] < 24), "<2_years", np.where((df["Months_on_book"] < 36), "<3_years", np.where((df["Months_on_book"] < 48), "<4_years", "<5_years"))))
 df["On_book_cat"].value_counts()
 df.groupby("On_book_cat")["Target"].mean() # Anlamlı değil
@@ -310,6 +313,7 @@ df.groupby("Income_Category")["Total_Trans_Amt"].mean()
 # TODO 3. Borcu olan müşteriler, bankadan ayrılamıyor.
 # TODO 4. Müşterileri bankada tutmak için A) ürün sat, B) borcunu artır -- mesela kk limitini artırmayı teklif et.
 
+# Eda says: bu zaten aşağıda var aslında nerede olmalı?
 df['Total_Amt_Increased'] = np.where((df['Total_Amt_Chng_Q4_Q1'] > 0) & (df['Total_Amt_Chng_Q4_Q1'] < 1), 0, 1)
 
 df["Has_debt"] = np.where((df["Credit_Limit"] > df["Avg_Open_To_Buy"]), 1, 0).astype(int)

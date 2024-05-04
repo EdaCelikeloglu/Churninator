@@ -187,11 +187,134 @@ fig = px.bar(df, x="Income_Category", y="Total_Revolving_Bal",
 st.plotly_chart(fig, use_container_width=True)
 
 
+#bunları sadece aşağıdakileri etkiliyordur diye aldım buraya
+df['Total_Amt_Increased'] = np.where((df['Total_Amt_Chng_Q4_Q1'] > 0) & (df['Total_Amt_Chng_Q4_Q1'] < 1), 0, 1)
+df["Has_debt"] = np.where((df["Credit_Limit"] > df["Avg_Open_To_Buy"]), 1, 0).astype(int)
+
+#bu grafiğini çizdirmek istediğimiz bir değişkendi
+df["Important_client_score"] = df["Total_Relationship_Count"] * (df["Months_on_book"] / 12)
+
+# Target'e göre Important_client_score'un grafiği:
+mean_scores_by_target = df.groupby("Target")["Important_client_score"].mean().reset_index()
+fig = px.bar(mean_scores_by_target, x="Target", y="Important_client_score",
+             labels={"Target": "Hedef", "Important_client_score": "Ortalama Puan"},
+             title="Targete Göre Important_client_score")
+fig.update_layout(height=400, width=400)
+st.plotly_chart(fig)
+
+# müşteri ile iletişim sayısı ve target:
+mean_churn_by_contact = df.groupby("Contacts_Count_12_mon")["Target"].mean().reset_index()
+mean_churn_by_contact = mean_churn_by_contact.rename(columns={"Target": "Churn_Rate"})
+fig = px.bar(mean_churn_by_contact, x="Contacts_Count_12_mon", y="Churn_Rate",
+             labels={"Contacts_Count_12_mon": "İletişim Sayısı", "Churn_Rate": "Ortalama Churn Oranı"},
+             title="İletişim Sayısına Göre Ortalama Churn Oranı")
+fig.update_layout(height=400, width=400)
+st.plotly_chart(fig)
+
+# bazı yeni değişkenler:
+df["Avg_Trans_Amt"] = df["Total_Trans_Amt"] / df['Total_Trans_Ct']
+
+labels = ['Young', 'Middle_Aged', 'Senior']
+bins = [25, 35, 55, 74]
+df['Customer_Age_Category'] = pd.cut(df['Customer_Age'], bins=bins, labels=labels)
+
+df["Days_Inactive_Last_Year"] = df["Months_Inactive_12_mon"] * 30
+
+df = df.sort_values(by="Days_Inactive_Last_Year", ascending=True)
+df.reset_index(drop=True, inplace=True)
+
+# Yeni bir "Recency" sütunu oluştur
+df['RecencyScore'] = np.nan
+# İlk 2025 satırı 5 olarak ayarla
+df.loc[:2024, 'RecencyScore'] = 5
+# Sonraki 2025 satırı 4 olarak ayarla
+df.loc[2025:4049, 'RecencyScore'] = 4
+# Sonraki 2027 satırı 3 olarak ayarla
+df.loc[4050:6076, 'RecencyScore'] = 3
+# Sonraki 2025 satırı 2 olarak ayarla
+df.loc[6077:8101, 'RecencyScore'] = 2
+# Kalan 2025 satırı 1 olarak ayarla
+df.loc[8102:, 'RecencyScore'] = 1
+
+df["MonetaryScore"] = pd.qcut(df["Total_Trans_Amt"], 5, labels=[1, 2, 3, 4, 5])
+df["FrequencyScore"] = pd.qcut(df["Total_Trans_Ct"], 5, labels=[1, 2, 3, 4, 5])
+
+combine_categories(df, 'Customer_Age_Category', 'Marital_Status', 'Age_&_Marital')
+combine_categories(df, 'Gender', 'Customer_Age_Category', 'Gender_&_Age')
+combine_categories(df, "Card_Category", "Customer_Age_Category", "Card_&_Age")
+combine_categories(df, "Gender", "FrequencyScore", "Gender_&_Frequency")
+combine_categories(df, "Gender", "MonetaryScore", "Gender_&_Monetary")
+
+df['Total_Amt_Increased'] = np.where((df['Total_Amt_Chng_Q4_Q1'] >= 0) & (df['Total_Amt_Chng_Q4_Q1'] < 1), 0, 1)
+df['Total_Ct_Increased'] = np.where((df['Total_Ct_Chng_Q4_Q1'] >= 0) & (df['Total_Ct_Chng_Q4_Q1'] < 1), 0, 1)
 
 
+# Bunları çok anlamadım sadece buraya ekledim
+df.loc[(df["Total_Ct_Chng_Q4_Q1"] == 1) & (df["Total_Amt_Chng_Q4_Q1"] > 1), "Ct_vs_Amt"] = "Same_ct_inc_amt"
+# boş
+df.loc[(df["Total_Ct_Chng_Q4_Q1"] == 1) & (df["Total_Amt_Chng_Q4_Q1"] == 1), "Ct_vs_Amt"] = "Same_ct_same_amt" # BOŞ
+# İşlem sayısı aynı kalıp, harcama miktarı azalanlar: (harcamalardan mı kısıyorlar? belki ihtiyaçları olanları almışlardır.) TODO May_Marry ile incele)
+df.loc[(df["Total_Ct_Chng_Q4_Q1"] == 1) & (df["Total_Amt_Chng_Q4_Q1"] < 1), "Ct_vs_Amt"] = "Same_ct_dec_amt"
+# işlem sayısı da, miktarı da artmış (bizi sevindiren müşteri <3 )
+df.loc[(df["Total_Ct_Chng_Q4_Q1"] > 1) & (df["Total_Amt_Chng_Q4_Q1"] > 1), "Ct_vs_Amt"] = "Inc_ct_inc_amt"
+# BOŞ İşlem sayısı artmasına rağmen, harcama miktarı aynı kalanlar: (aylık ortalama harcama azalıyor)
+df.loc[(df["Total_Ct_Chng_Q4_Q1"] > 1) & (df["Total_Amt_Chng_Q4_Q1"] == 1), "Ct_vs_Amt"] = "Inc_ct_same_amt" # BOŞ
+# İşlem sayısı artmış ama miktar azalmış. Yani daha sık, ama daha küçük alışverişler yapıyor. Bunlar düşük income grubuna aitse bankayı mutlu edecek bir davranış.
+df.loc[(df["Total_Ct_Chng_Q4_Q1"] > 1) & (df["Total_Amt_Chng_Q4_Q1"] < 1), "Ct_vs_Amt"] = "Inc_ct_dec_amt"
+#(df.loc[(df["Total_Ct_Chng_Q4_Q1"] > 1) & (df["Total_Amt_Chng_Q4_Q1"] < 1)]).groupby("Income_Category").count() # Evet, düşük income grubuna ait.
+# İşlem sayısı azalmış ama daha büyük miktarlarda harcama yapılıyor:
+df.loc[(df["Total_Ct_Chng_Q4_Q1"] < 1) & (df["Total_Amt_Chng_Q4_Q1"] > 1), "Ct_vs_Amt"] = "Dec_ct_inc_amt"
+# İşlem sayısı azalmış, toplam miktar aynı kalmış (yani ortalama harcama artmış):
+df.loc[(df["Total_Ct_Chng_Q4_Q1"] < 1) & (df["Total_Amt_Chng_Q4_Q1"] == 1), "Ct_vs_Amt"] = "Dec_ct_same_amt"
+# İşlem sayısı azalmış, miktar da azalmış. Churn eder mi acaba?
+df.loc[(df["Total_Ct_Chng_Q4_Q1"] < 1) & (df["Total_Amt_Chng_Q4_Q1"] < 1), "Ct_vs_Amt"] = "Dec_ct_dec_amt"
 
 
+#Age_&_Marital   Gender_&_Age        Card_&_Age değişkenlerini target ile baktım:
+fig_age_marital = px.histogram(df, x="Age_&_Marital", color="Target", barmode="group",
+                                labels={"Age_&_Marital": "Yaş ve Medeni Durum", "Target": "Churn Durumu"},
+                                title="Yaş ve Medeni Duruma Göre Churn Durumu")
+fig_age_marital.update_layout(xaxis_title="Yaş ve Medeni Durum", yaxis_title="Sayı")
 
+fig_gender_age = px.histogram(df, x="Gender_&_Age", color="Target", barmode="group",
+                               labels={"Gender_&_Age": "Cinsiyet ve Yaş", "Target": "Churn Durumu"},
+                               title="Cinsiyet ve Yaşa Göre Churn Durumu")
+fig_gender_age.update_layout(xaxis_title="Cinsiyet ve Yaş", yaxis_title="Sayı")
+
+fig_card_age = px.histogram(df, x="Card_&_Age", color="Target", barmode="group",
+                             labels={"Card_&_Age": "Kart ve Yaş", "Target": "Churn Durumu"},
+                             title="Kart ve Yaşa Göre Churn Durumu")
+fig_card_age.update_layout(xaxis_title="Kart ve Yaş", yaxis_title="Sayı")
+st.plotly_chart(fig_age_marital)
+st.plotly_chart(fig_gender_age)
+st.plotly_chart(fig_card_age)
+
+
+# burada Dec_ct_dec_amt kategorisi nedir? Çok fazla yoğunluk var orda
+#  Ct_vs_Amt ile Target:
+fig = px.histogram(df, x="Ct_vs_Amt", color="Target", barmode="group",
+                   title="Ct_vs_Amt Değişkeninin Target İle İlişkisi",
+                   labels={"Ct_vs_Amt": "Ct_vs_Amt", "Target": "Target Ortalaması"},
+                   color_discrete_map={0: "lightblue", 1: "salmon"})
+
+fig.update_layout(bargap=0.1)
+st.plotly_chart(fig)
+
+# bunun notunu almışım birlikte yorumlayalım.:
+fig = px.scatter(df, x="Credit_Limit", y="Total_Revolving_Bal", color="Income_Category",
+                 title="Kredi Limiti ve Devir Bakiyesi İlişkisi",
+                 labels={"Credit_limit": "Kredi Limiti", "Total_revolving_Bal": "Devir Bakiyesi"},
+                 color_discrete_sequence=px.colors.qualitative.Set2)
+fig.update_layout(height=800, width=1200)
+st.plotly_chart(fig)
+
+#büyük Pasta
+#'Education_Level' 'Income_Category' bunları da koycam Nanlar sorun çıkardı
+fig = px.sunburst(df, path=['Target', 'Gender', 'Customer_Age_Category', 'Marital_Status'])
+fig.update_layout(height=1000, width=1000)
+# Streamlit ile gösterme
+st.plotly_chart(fig)
+#bunun farklı versiyonlarını deneyelim
 
 
 
