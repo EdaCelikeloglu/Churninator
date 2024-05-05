@@ -2,10 +2,13 @@ import plotly.express as px
 import streamlit as st
 import time
 import numpy as np
+import networkx as nx
+import plotly.graph_objects as go
 import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
 from sklearn.neighbors import LocalOutlierFactor
+from pywaffle import Waffle
 
 st.set_page_config(page_title="Plotting Demo", page_icon="📈", layout="wide")
 
@@ -136,6 +139,8 @@ plt.show()
 th = np.sort(df_scores)[25]
 
 df[df_scores < th].drop(axis=0, labels=df[df_scores < th].index)
+
+cat_cols, num_cols, cat_but_car = grab_col_names(df)
 
 # Missing values
 cols_with_unknown = ['Income_Category', "Education_Level"]
@@ -315,6 +320,167 @@ fig.update_layout(height=1000, width=1000)
 # Streamlit ile gösterme
 st.plotly_chart(fig)
 #bunun farklı versiyonlarını deneyelim
+
+
+# Personalar
+df["Affluent_criteria"] = (df['Income_Category'] == '$120K +').astype(int)
+df["Budget_criteria"] = ((df['Income_Category'] == 'Less than $40K') & (df['Education_Level'].isin(['High School', 'College']))).astype(int)
+df["Young_prof_criteria"] = ((df['Customer_Age'] <= 30) & (df['Education_Level'].isin(['College', 'Graduate']))).astype(int)
+df["Family_criteria"] = ((df["Marital_Status"].isin(["Married", "Divorced", "Unknown"])) & (df['Dependent_count'] >= 3)).astype(int)
+df["Credit_builder_criteria"] = (df['Credit_Limit'] < 2500).astype(int)  # This threshold is chosen to include individuals with credit limits in the lower percentiles of the distribution, which may indicate a need for credit-building strategies or entry-level credit products.
+df["Digital_criteria"] = (df['Contacts_Count_12_mon'] == 0).astype(int)
+df["High_net_worth_individual"] = ((df['Income_Category'] == '$120K +') & (df['Total_Trans_Amt'] > 5000)).astype(int)
+df["Rewards_maximizer"] = ((df['Total_Trans_Amt'] > 10000) & (df['Total_Revolving_Bal'] == 0)).astype(int) # For the Rewards_maximizer column, the threshold for Total_Trans_Amt is also set at $10000. Since rewards maximizers are individuals who strategically maximize rewards and benefits from credit card usage, it's reasonable to expect that they engage in higher levels of spending. Therefore, the threshold of $10000 for Total_Trans_Amt appears appropriate for identifying rewards maximizers, considering that it captures individuals with relatively high spending habits.
+df["May_marry"] = ((df["Age_&_Marital"] == "Young_Single") & (df['Dependent_count'] == 0)).astype(int)
+
+df["Product_by_Year"] = df["Total_Relationship_Count"] / (df["Months_on_book"] / 12)
+
+
+cat_cols, num_cols, cat_but_car = grab_col_names(df)
+
+df['Year_on_book'] = df['Months_on_book'] // 12
+
+"""rfm skorları ile segmentasyon oluşturma"""
+
+df['RecencyScore'] = df['RecencyScore'].astype(int)
+
+# rfm score oluşturma
+df["RFM_SCORE"] = df['RecencyScore'].astype(str) + df['FrequencyScore'].astype(str) + df['MonetaryScore'].astype(str)
+
+df[["RFM_SCORE", "RecencyScore","FrequencyScore", "MonetaryScore" ]].head()
+
+seg_map = {
+        r'[1-2][1-2]': 'Hibernating',
+        r'[1-2][3-4]': 'At Risk',
+        r'[1-2]5': 'Can\'t Loose',
+        r'3[1-2]': 'About to Sleep',
+        r'33': 'Need Attention',
+        r'[3-4][4-5]': 'Loyal Customers',
+        r'41': 'Promising',
+        r'51': 'New Customers',
+        r'[4-5][2-3]': 'Potential Loyalists',
+        r'5[4-5]': 'Champions'
+}
+
+# segment oluşturma (Recency + Frequency)
+df['Segment'] = df['RecencyScore'].astype(str) + df['FrequencyScore'].astype(str)
+df['Segment'] = df['Segment'].replace(seg_map, regex=True)
+df['Segment'].head()
+
+cat_cols, num_cols, cat_but_car = grab_col_names(df)
+
+# k-means ile müşteri segmentasyonu öncesi standartlaştırmayı yapmak gerek
+# Min-Max ölçeklendirme
+from sklearn.preprocessing import MinMaxScaler
+
+sc = MinMaxScaler((0,1))
+df[['Total_Trans_Amt','Total_Trans_Ct','Days_Inactive_Last_Year']] = sc.fit_transform(df[['Total_Trans_Amt','Total_Trans_Ct','Days_Inactive_Last_Year']])
+
+
+from sklearn.cluster import KMeans
+# model fit edildi.
+kmeans = KMeans(n_clusters=10)
+k_fit = kmeans.fit(df[['Days_Inactive_Last_Year','Total_Trans_Ct']])
+# Total_Trans_Amt = Monetary
+# Total_Trans_Ct = Frequency
+# Months_Inactive_12_mon  Recency
+
+# merkezler
+centers = kmeans.cluster_centers_
+segments = kmeans.labels_
+df['Cluster'] = segments+1 #kümeler 0'dan başlamasın diye
+df.head()
+df['RFMSegment'] = np.array(df['Cluster'])
+df.groupby(['Cluster','RFMSegment'])['RFMSegment'].count()
+
+
+# RFM Skorlarının 3D Scatter Plot ile Görselleştirilmesi
+st.title('RFM Skorlarının 3D Scatter Plot ile Görselleştirilmesi')
+df['RFM_SCORE'] = df['RFM_SCORE'].astype(int)
+# 3D scatter plot'u oluşturalım
+fig = plt.figure(figsize=(10, 8))
+ax = fig.add_subplot(111, projection='3d')
+# RFM skorlarını x, y ve z eksenlerine ayıralım
+x = df['RFM_SCORE'] // 100
+y = df['RFM_SCORE'] // 10 % 10
+z = df['RFM_SCORE'] % 10
+
+ax.scatter(x, y, z, c='b', marker='o')
+ax.set_xlabel('Recency')
+ax.set_ylabel('Frequency')
+ax.set_zlabel('Monetary')
+ax.set_title('RFM Skorlarının 3D Scatter Plot ile Görselleştirilmesi')
+st.write(fig)
+
+
+# Target ve Segment Treemap
+combination_df = df.groupby(['Target', 'Segment']).size().reset_index(name='Count')
+fig = px.treemap(combination_df, path=['Target', 'Segment'], values='Count', title='Target ve Segment Kombinasyonları')
+fig.update_layout(height=800, width=1000)
+st.plotly_chart(fig)
+
+
+# Rare analyser:
+def rare_analyser(dataframe, target, cat_cols):
+    for col in cat_cols:
+        print(col, ":", len(dataframe[col].value_counts()))
+        print(pd.DataFrame({"COUNT": dataframe[col].value_counts(),
+                            "RATIO": dataframe[col].value_counts() / len(dataframe),
+                            "TARGET_MEAN": dataframe.groupby(col)[target].mean()}), end="\n\n\n")
+
+rare_analyser(df, "Target", cat_cols)
+
+# Rare encoding:
+df["Card_Category"] = df["Card_Category"].apply(lambda x: "Gold_Platinum" if x == "Platinum" or x == "Gold" else x)
+df["Months_Inactive_12_mon"] = df["Months_Inactive_12_mon"].apply(lambda x: 1 if x == 0 else x)
+df["Ct_vs_Amt"] = df["Ct_vs_Amt"].apply(lambda x: "Dec_ct_inc_amt" if x == "Dec_ct_same_amt" else x)
+df["Ct_vs_Amt"] = df["Ct_vs_Amt"].apply(lambda x: "Inc_ct_inc_amt" if x == "Same_ct_inc_amt" else x)
+df["Contacts_Count_12_mon"] = df["Contacts_Count_12_mon"].apply(lambda x: 5 if x == 6 else x)
+df["Card_&_Age"] = df["Card_&_Age"].apply(lambda x: "Rare" if df["Card_&_Age"].value_counts()[x] < 30 else x)
+df["Card_&_Age"].value_counts()
+
+cat_cols, num_cols, cat_but_car = grab_col_names(df)
+
+#Gülen Yüzlerimiz
+
+# # Target değişkenindeki 1 ve 0'ların sayısını hesaplayın
+# count_1 = df['Target'].sum()
+# count_0 = len(df) - count_1
+# data = {'1 (Gülen Yüz)': count_1, '0 (Ağlayan Yüz)': count_0}
+#
+# fig = plt.figure(
+#     FigureClass=Waffle,
+#     rows=5,
+#     values=data,
+#     colors=("#008080", "#FF5733"),
+#     legend={'loc': 'upper left', 'bbox_to_anchor': (1, 1)},
+#     icons=('smile', 'frown'),
+#     icon_size=30,
+#     icon_legend=True,
+#     figsize=(10, 5)
+# )
+# st.pyplot(fig)
+
+
+
+
+
+
+
+
+
+
+
+# PCA ve waffle plot:
+#bunu yapabilmek için tüm veri scale edilmiş olmalı
+#o yüzden modele kadar herşeyi üste ekledim
+
+
+
+
+
+
+
 
 
 

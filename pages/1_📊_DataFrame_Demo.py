@@ -5,6 +5,7 @@ from urllib.error import URLError
 import plotly as px
 import plotly.express as px
 import plotly.graph_objects as go
+from pywaffle import Waffle
 from catboost import CatBoostClassifier
 from lightgbm import LGBMClassifier
 from scipy.stats import chi2_contingency
@@ -61,6 +62,16 @@ df.drop([
     inplace=True, axis=1)
 
 st.write(df.head())
+
+
+
+
+
+
+
+
+
+
 
 # Hedef değişken dağılımını pasta grafiği olarak gösterme
 attrition_counts = df["Attrition_Flag"].value_counts()
