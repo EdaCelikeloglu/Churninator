@@ -132,7 +132,15 @@ df.drop("CLIENTNUM", axis=1, inplace=True)
 
 cat_cols, num_cols, cat_but_car = grab_col_names(df)
 
-# Outlier temizleme
+# Outlier temizleme (IQR ve LOF):
+# IQR
+for col in num_cols:
+    print(col)
+    grab_outliers(df, col)
+
+for col in num_cols:
+    replace_with_thresholds(df, col)
+
 # LOF
 clf = LocalOutlierFactor(n_neighbors=20)
 clf.fit_predict(df[num_cols])
@@ -166,6 +174,7 @@ df.groupby("Total_Relationship_Count")["Target"].mean()
 # 6   0.105
 # TODO churn etmesi beklenen müşteriye, bankanın başka ürünlerinden kampanyalı satış yapmaya çalışmalıyız.
 
+
 df.groupby("Months_Inactive_12_mon")["Target"].mean()
 # 0   0.517
 # 1   0.045
@@ -181,6 +190,8 @@ df.groupby("Target")["Months_on_book"].mean()
 df["Months_on_book"].value_counts()
 df["Months_on_book"].describe().T
 # TODO bu aşağıdakinden Gizem de yapmış, pushlayınca onunkini alırız.
+# Eda says: ben grafikleri çizdirebilmek için buradaki değişiklikleri plottingdemoya aktarmam gerekiyor ama anlamlı değil demişsiniz
+# o yüzden bu on book cat değişkenini almadım eğer almam gerekiyorsa bana söyleyin bunu please
 df["On_book_cat"] = np.where((df["Months_on_book"] < 12), "<1_year", np.where((df["Months_on_book"] < 24), "<2_years", np.where((df["Months_on_book"] < 36), "<3_years", np.where((df["Months_on_book"] < 48), "<4_years", "<5_years"))))
 df["On_book_cat"].value_counts()
 df.groupby("On_book_cat")["Target"].mean() # Anlamlı değil
@@ -199,7 +210,7 @@ df.loc[df['Total_Revolving_Bal'] > 2510].value_counts()
 df["Total_Revolving_Bal"].describe().T
 
 
-df.groupby("Target")["Avg_Utilization_Ratio"].mean() # TODO kredisi yükseltilmeyenlerin churn etme oranı daha yüksek (x3.5).
+df.groupby("Target")["Avg_Utilization_Ratio"].mean() # TODO borcu düşük olanların churn etme oranı daha yüksek (x3.5).
 # 0   0.296
 # 1   0.162
 
@@ -215,6 +226,7 @@ df.groupby("Income_Category")["Total_Trans_Amt"].mean()
 # TODO 3. Borcu olan müşteriler, bankadan ayrılamıyor.
 # TODO 4. Müşterileri bankada tutmak için A) ürün sat, B) borcunu artır -- mesela kk limitini artırmayı teklif et.
 
+# Eda says: bu zaten aşağıda var aslında nerede olmalı?
 df['Total_Amt_Increased'] = np.where((df['Total_Amt_Chng_Q4_Q1'] > 0) & (df['Total_Amt_Chng_Q4_Q1'] < 1), 0, 1)
 
 df["Has_debt"] = np.where((df["Credit_Limit"] > df["Avg_Open_To_Buy"]), 1, 0).astype(int)
@@ -487,94 +499,6 @@ for col in df.columns:
 
 cat_cols, num_cols, cat_but_car = grab_col_names(df)
 
-# Credit limit - total revolvinng bal = avg open to buy
-# df[["Credit_Limit","Total_Revolving_Bal","Avg_Open_To_Buy"]].head(20)
-#
-# df["fark"] = df["Credit_Limit"] - df["Total_Revolving_Bal"]
-#
-# df[["fark", "Avg_Open_To_Buy"]].head(50)
-
-# total revolving bal / credit limit = avg_utilication_ratio
-# df[["Total_Revolving_Bal","Credit_Limit","Avg_Utilization_Ratio"]].head(20)
-#
-# df["bölüm"] = df["Total_Revolving_Bal"] / df["Credit_Limit"]
-#
-# df[["bölüm", "Avg_Utilization_Ratio"]].head(50)
-
-
-# Scatter plot çizimi
-plt.figure(figsize=(10, 10))
-sns.scatterplot(x='Credit_Limit', y='Total_Revolving_Bal', hue='Income_Category', data=df, s=20)
-plt.xlabel('Credit Limit')
-plt.ylabel('Total Revolving Balance')
-plt.title('Scatter Plot of Total Revolving Balance vs. Credit Limit by Income Category')
-plt.tight_layout()
-plt.show()
-
-
-# Müşterinin yaşını ve bankada geçirdiği süreyi birleştirerek uzun süreli müşteri olup olmadığını gösteren bir değişken oluşturma
-# Ay bilgilerini yıla çevirerek yeni bir sütun oluşturma
-df['Year_on_book'] = df['Months_on_book'] // 12
-df['Year_on_book'].value_counts()
-# Year_on_book
-# 3    5508
-# 2    3115
-# 4     817
-# 1     687
-
-
-"""rfm skorları ile segmentasyon oluşturma"""
-
-# rfm score oluşturma
-df["RFM_SCORE"] = df['RecencyScore'].astype(str) + df['FrequencyScore'].astype(str) + df['MonetaryScore'].astype(str)
-
-seg_map = {
-        r'[1-2][1-2]': 'Hibernating',
-        r'[1-2][3-4]': 'At Risk',
-        r'[1-2]5': 'Can\'t Loose',
-        r'3[1-2]': 'About to Sleep',
-        r'33': 'Need Attention',
-        r'[3-4][4-5]': 'Loyal Customers',
-        r'41': 'Promising',
-        r'51': 'New Customers',
-        r'[4-5][2-3]': 'Potential Loyalists',
-        r'5[4-5]': 'Champions'
-}
-# segment oluşturma (Recency + Frequency)
-df['Segment'] = df['RecencyScore'].astype(str) + df['FrequencyScore'].astype(str)
-df['Segment'] = df['Segment'].replace(seg_map, regex=True)
-df.head()
-
-cat_cols, num_cols, cat_but_car = grab_col_names(df)
-
-# k-means ile müşteri segmentasyonu öncesi standartlaştırmayı yapmak gerek
-# Min-Max ölçeklendirme
-from sklearn.preprocessing import MinMaxScaler
-
-sc = MinMaxScaler((0,1))
-df[['Total_Trans_Amt','Total_Trans_Ct','Months_Inactive_12_mon']] = sc.fit_transform(df[['Total_Trans_Amt','Total_Trans_Ct','Months_Inactive_12_mon']])
-
-
-from sklearn.cluster import KMeans
-# model fit edildi.
-kmeans = KMeans(n_clusters = 10)
-k_fit = kmeans.fit(df[['Months_Inactive_12_mon','Total_Trans_Ct']])
-# Total_Trans_Amt = Monetary
-# Total_Trans_Ct = Frequency
-# Months_Inactive_12_mon  Recency
-
-# merkezler
-centers = kmeans.cluster_centers_
-
-segments = kmeans.labels_
-df['Cluster'] = segments+1 #kümeler 0'dan başlamasın diye
-df.head()
-
-
-df['RFMSegment'] = np.array(df['Cluster'])
-
-df.groupby(['Cluster','RFMSegment'])['RFMSegment'].count()
-
 
 # Feature scaling (robust):
 # TODO GBM için scale etmeden deneyeceğiz.
@@ -590,7 +514,7 @@ ssd = []
 K = range(1,30)
 
 for k in K:
-    kmeans = KMeans(n_clusters = k).fit(df[['Months_Inactive_12_mon','Total_Trans_Ct','Total_Trans_Amt']])
+    kmeans = KMeans(n_clusters = k).fit(df[['Days_Inactive_Last_Year','Total_Trans_Ct','Total_Trans_Amt']])
     ssd.append(kmeans.inertia_) #inertia her bir k değeri için ssd değerini bulur.
 
 plt.plot(K, ssd, "bx-")
@@ -600,7 +524,7 @@ plt.title("Elbow method for Optimum number of clusters")
 from yellowbrick.cluster import KElbowVisualizer
 kmeans = KMeans()
 visu = KElbowVisualizer(kmeans, k = (2,20))
-visu.fit(df[['Months_Inactive_12_mon','Total_Trans_Ct','Total_Trans_Amt']])
+visu.fit(df[['Days_Inactive_Last_Year','Total_Trans_Ct','Total_Trans_Amt']])
 visu.poof();
 # k = 6 çıktı
 
@@ -609,7 +533,7 @@ visu.poof();
 # Total_Trans_Ct = Frequency
 # Months_Inactive_12_mon  Recency
 # yeni optimum kümse sayısı ile model fit edilmiştir.
-kmeans = KMeans(n_clusters = 5).fit(df[['Months_Inactive_12_mon','Total_Trans_Ct','Total_Trans_Amt']])
+kmeans = KMeans(n_clusters = 6).fit(df[['Days_Inactive_Last_Year','Total_Trans_Ct','Total_Trans_Amt']])
 kumeler = kmeans.labels_
 pd.DataFrame({"Customer ID": df.index, "Kumeler": kumeler})
 
@@ -749,6 +673,7 @@ def hyperparameter_optimization(X_train, y_train, X_test, y_test, cv=3, scoring=
 
 hyperparameter_optimization(X_train, y_train, X_test, y_test)
 
+
 ################################
 # Analyzing Model Complexity with Learning Curves (BONUS)
 ################################
@@ -785,5 +710,3 @@ for i in range(len(rf_val_params)):
     val_curve_params(rf_model, X, y, rf_val_params[i][0], rf_val_params[i][1])
 
 rf_val_params[0][1]
-
-# gizmo
