@@ -132,15 +132,7 @@ df.drop("CLIENTNUM", axis=1, inplace=True)
 
 cat_cols, num_cols, cat_but_car = grab_col_names(df)
 
-# Outlier temizleme (IQR ve LOF):
-# IQR
-for col in num_cols:
-    print(col)
-    grab_outliers(df, col)
-
-for col in num_cols:
-    replace_with_thresholds(df, col)
-
+# Outlier temizleme
 # LOF
 clf = LocalOutlierFactor(n_neighbors=20)
 clf.fit_predict(df[num_cols])
@@ -273,12 +265,13 @@ df.loc[6077:8101, 'RecencyScore'] = 2
 # Kalan 2025 satırı 1 olarak ayarla
 df.loc[8102:, 'RecencyScore'] = 1
 
+df['RecencyScore'] = df['RecencyScore'].astype(int)
 
 df["MonetaryScore"] = pd.qcut(df["Total_Trans_Amt"], 5, labels=[1, 2, 3, 4, 5])
 df["FrequencyScore"] = pd.qcut(df["Total_Trans_Ct"], 5, labels=[1, 2, 3, 4, 5])
 # # Total_Trans_Amt = Monetary
 # # Total_Trans_Ct = Frequency
-# # Days_Inactive_12_mon = Recency
+# # Days_Inactive_Last_Year = Recency
 
 combine_categories(df, 'Customer_Age_Category', 'Marital_Status', 'Age_&_Marital')
 combine_categories(df, 'Gender', 'Customer_Age_Category', 'Gender_&_Age')
@@ -529,9 +522,12 @@ df['Year_on_book'].value_counts()
 
 
 """rfm skorları ile segmentasyon oluşturma"""
+# Total_Trans_Amt = Monetary
+# Total_Trans_Ct = Frequency
+# Days_Inactive_Last_Year  Recency
 
-# rfm score oluşturma
-df["RFM_SCORE"] = df['RecencyScore'].astype(str) + df['FrequencyScore'].astype(str) + df['MonetaryScore'].astype(str)
+# Recency: A recent purchase indicates that the customer is active and potentially more receptive to further
+# communication or offers.
 
 seg_map = {
         r'[1-2][1-2]': 'Hibernating',
@@ -545,41 +541,68 @@ seg_map = {
         r'[4-5][2-3]': 'Potential Loyalists',
         r'5[4-5]': 'Champions'
 }
+
 # segment oluşturma (Recency + Frequency)
 df['Segment'] = df['RecencyScore'].astype(str) + df['FrequencyScore'].astype(str)
 df['Segment'] = df['Segment'].replace(seg_map, regex=True)
-df.head()
+df.head(40)
 
-cat_cols, num_cols, cat_but_car = grab_col_names(df)
+# # Belirtilen sütunları seçerek yeni bir DataFrame oluşturalım
+# rfm = df[['Total_Trans_Ct', 'Total_Trans_Amt', 'Days_Inactive_Last_Year']]
+
 
 # k-means ile müşteri segmentasyonu öncesi standartlaştırmayı yapmak gerek
 # Min-Max ölçeklendirme
 from sklearn.preprocessing import MinMaxScaler
 
+
 sc = MinMaxScaler((0,1))
-df[['Total_Trans_Amt','Total_Trans_Ct','Months_Inactive_12_mon']] = sc.fit_transform(df[['Total_Trans_Amt','Total_Trans_Ct','Months_Inactive_12_mon']])
+df[['Days_Inactive_Last_Year','Total_Trans_Ct', 'Total_Trans_Amt']] = sc.fit_transform(df[['Days_Inactive_Last_Year', 'Total_Trans_Ct', 'Total_Trans_Amt']])
+
+
 
 
 from sklearn.cluster import KMeans
 # model fit edildi.
-kmeans = KMeans(n_clusters = 10)
-k_fit = kmeans.fit(df[['Months_Inactive_12_mon','Total_Trans_Ct']])
-# Total_Trans_Amt = Monetary
-# Total_Trans_Ct = Frequency
-# Months_Inactive_12_mon  Recency
+kmeans = KMeans(n_clusters = 4, max_iter=50)
+kmeans.fit(df[['Days_Inactive_Last_Year','Total_Trans_Ct', 'Total_Trans_Amt']])
 
-# merkezler
-centers = kmeans.cluster_centers_
+df["cluster_no"] = kmeans.labels_
+df["cluster_no"] = df["cluster_no"] + 1
+df.groupby("cluster_no")["Segment"].value_counts()
 
-segments = kmeans.labels_
-df['Cluster'] = segments+1 #kümeler 0'dan başlamasın diye
+ssd = []
+
+K = range(1,30)
+
+for k in K:
+    kmeans = KMeans(n_clusters = k).fit(df[['Days_Inactive_Last_Year', 'Total_Trans_Ct', 'Total_Trans_Amt']])
+    ssd.append(kmeans.inertia_) #inertia her bir k değeri için ssd değerini bulur.
+
+
+# Optimum küme sayısını belirleme
+from yellowbrick.cluster import KElbowVisualizer
+kmeans = KMeans()
+visualizer = KElbowVisualizer(kmeans, k=(2,20))
+visualizer.fit(df[['Days_Inactive_Last_Year', 'Total_Trans_Ct', 'Total_Trans_Amt']])
+visualizer.poof()
+
+# yeni optimum kümse sayısı ile model fit edilmiştir.
+kmeans = KMeans(n_clusters = 6).fit(df[['Days_Inactive_Last_Year', 'Total_Trans_Ct', 'Total_Trans_Amt']])
+
+
+# Cluster_no 0'dan başlamaktadır. Bunun için 1 eklenmiştir.
+df["cluster_no"] = kmeans.labels_
+df["cluster_no"] = df["cluster_no"] + 1
+
 df.head()
 
+df["cluster_no"].value_counts()
 
-df['RFMSegment'] = np.array(df['Cluster'])
+df[["cluster_no", "Segment"]].head(40)
 
-df.groupby(['Cluster','RFMSegment'])['RFMSegment'].count()
 
+df.groupby("cluster_no")["Segment"].value_counts()
 
 # Feature scaling (robust):
 # TODO GBM için scale etmeden deneyeceğiz.
@@ -587,43 +610,6 @@ rs = RobustScaler()
 df[num_cols] = rs.fit_transform(df[num_cols])
 
 df["Cluster"].value_counts()
-
-
-#liste olusturduk.
-ssd = []
-
-K = range(1,30)
-
-for k in K:
-    kmeans = KMeans(n_clusters = k).fit(df[['Months_Inactive_12_mon','Total_Trans_Ct','Total_Trans_Amt']])
-    ssd.append(kmeans.inertia_) #inertia her bir k değeri için ssd değerini bulur.
-
-plt.plot(K, ssd, "bx-")
-plt.xlabel("Distance Residual Sums Versus Different k Values")
-plt.title("Elbow method for Optimum number of clusters")
-
-from yellowbrick.cluster import KElbowVisualizer
-kmeans = KMeans()
-visu = KElbowVisualizer(kmeans, k = (2,20))
-visu.fit(df[['Months_Inactive_12_mon','Total_Trans_Ct','Total_Trans_Amt']])
-visu.poof();
-# k = 6 çıktı
-
-
-# Total_Trans_Amt = Monetary
-# Total_Trans_Ct = Frequency
-# Months_Inactive_12_mon  Recency
-# yeni optimum kümse sayısı ile model fit edilmiştir.
-kmeans = KMeans(n_clusters = 5).fit(df[['Months_Inactive_12_mon','Total_Trans_Ct','Total_Trans_Amt']])
-kumeler = kmeans.labels_
-pd.DataFrame({"Customer ID": df.index, "Kumeler": kumeler})
-
-# Cluster_no 0'dan başlamaktadır. Bunun için 1 eklenmiştir.
-df["cluster_no"] = kumeler
-df["cluster_no"] = df["cluster_no"] + 1
-
-df.head()
-
 
 
 # Korelasyon Heatmap:
