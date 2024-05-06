@@ -1,0 +1,190 @@
+#######################
+# Recommendation Engine
+#######################
+
+Churn olması tahmin edilen müşterideki özelliklere göre öneriler:
+
+- About to Sleep:
+    * Action: Implement personalized re-engagement campaigns targeting customers in this segment to prevent churn.
+        * Example: Offer exclusive rewards or discounts on future transactions to incentivize continued usage of the credit card.
+            * Anlaşmalı iş yerlerinde indirimler
+        * Product Recommendation: Offer a "Savings Booster" account with higher interest rates for a limited time to encourage customers to save more and re-engage with their banking activities.
+        * Promotion: Provide a bonus cash incentive or a gift card for customers who open a "Savings Booster" account and set up automatic transfers from their checking accounts.
+        * Offer a "Financial Health Checkup" program.
+
+- Can't Lose:
+    * Action: Reinforce loyalty and satisfaction by offering VIP benefits or exclusive perks to customers in this segment.
+        * Example: Provide early access to new product launches or invite-only events to make them feel valued and appreciated.
+
+- Champions:
+    * Action: Maintain engagement and satisfaction by continuing to deliver exceptional service and rewards.
+        * Example: Send personalized thank-you notes or surprise gifts to top-tier customers to strengthen their loyalty further.
+    * Recommendation: Launch an "Elite Rewards Program."
+        * Product/Service: Offer exclusive rewards and benefits, such as VIP customer service, premium travel perks, and enhanced cashback rates, for top-tier customers.
+        * Promotion: Invite customers in the Champions segment to enroll in the elite rewards program, showcasing the luxury and prestige associated with membership.
+        * Objective: Recognize and reward the loyalty of high-value customers, reinforcing their status as brand ambassadors and reducing the likelihood of churn.
+
+- Hibernating:
+    * Action: Launch targeted win-back campaigns to re-engage dormant customers and prevent further attrition.
+        * Example: Offer limited-time offers to entice hibernating customers back to active usage of their credit cards.
+        * Product Recommendation: Introduce a "Financial Health Checkup" service where customers can schedule appointments with financial advisors to review their financial situations and receive personalized recommendations.
+        * Promotion: Offer a complimentary session with a financial advisor along with a discount on selected investment products or insurance plans for customers who book a "Financial Health Checkup".
+    * Recommendation: Introduce a "Welcome Back" campaign.
+        * Product/Service: Offer a limited-time promotion for reactivating their account, such as a cashback bonus or a waived annual fee on their credit card.
+        * Promotion: Send targeted emails or direct mailers inviting them to take advantage of exclusive offers upon reactivation.
+        * Objective: Encourage dormant customers to resume their banking activities by providing attractive incentives and reminders of the value of their relationship with the bank.
+
+- Need Attention:
+    * Action: Identify pain points or dissatisfaction factors and address them promptly to prevent churn.
+        * Example: Conduct customer surveys or feedback sessions to gather insights and implement necessary improvements to products or services.
+
+- Credit Builder:
+        * Product Recommendation: Launch a "Credit Rebuilder" program aimed at customers with low credit scores, offering secured credit cards or credit-building loans with flexible terms and lower interest rates.
+        * Promotion: Provide an exclusive discount on the annual fee or interest rate for customers who enroll in the "Credit Rebuilder" program within a specified timeframe.
+
+- New Customers:
+    * Action: Provide onboarding support and guidance to ensure a smooth transition into becoming loyal customers.
+        * Example: Offer welcome bonuses or introductory offers to new customers to encourage continued usage and engagement.
+
+- Potential Loyalists:
+    * Action: Foster deeper relationships with customers in this segment by offering personalized recommendations and rewards.
+        * Example: Provide targeted cross-selling opportunities based on their transaction history and preferences to increase their overall engagement.
+
+- Promising:
+    * Action: Invest in nurturing relationships with customers in this segment to maximize their long-term value.
+        * Example: Offer loyalty-building initiatives such as tiered rewards programs or referral bonuses to encourage continued loyalty and advocacy.
+
+- Rewards Maximizers
+        * Product Recommendation: Introduce a premium rewards credit card with enhanced benefits such as higher cashback rates, bonus points for specific categories, and travel perks tailored to frequent travelers or big spenders.
+        * Promotion: Offer a limited-time sign-up bonus or an increased cashback rate for new cardholders who meet a minimum spending requirement within the first three months.
+
+- Budget-Conscious Families
+        * Product Recommendation: Create a "Family Bundle" package that includes a checking account with no monthly maintenance fees, a savings account with competitive interest rates, and a discounted rate on a college savings plan.
+        * Promotion: Provide a cash bonus or a gift card for families who open a "Family Bundle" account and set up direct deposits for their monthly expenses.
+
+- Young Professionals
+        * Product Recommendation: Develop a "Career Starter" package tailored to young professionals, offering a checking account with budgeting tools, a student loan refinancing option, and access to career development resources.
+        * Promotion: Host networking events or workshops exclusively for young professionals who sign up for the "Career Starter" package, providing opportunities to connect with industry mentors or attend skill-building sessions.
+
+
+##### çalışması devam edenler: başlangıç
+1. Feature: High Utilization Ratio and Revolving Balances
+    * Recommendation: Launch a "Debt Management Program."
+        * Product/Service: Provide options for debt consolidation loans or balance transfer credit cards with lower interest rates.
+        * Promotion: Offer personalized recommendations based on their current utilization ratio and revolving balances, highlighting the potential savings and benefits of consolidating their debts.
+        * Objective: Help customers reduce their debt burden and improve their financial well-being, thereby increasing loyalty and reducing the risk of churn.
+
+Potential Loyalists with Low Income and High Contact Count
+    * Recommendation: Create an "Affordable Banking Bundle."
+        * Product/Service: Bundle together basic banking services, such as a checking account, savings account, and debit card, with no monthly fees.
+        * Promotion: Target customers with low incomes and high contact counts with a special offer for the banking bundle, emphasizing its affordability and convenience.
+        * Objective: Provide value-added services to price-sensitive customers while increasing engagement and reducing churn among this segment.
+
+# Leverage the "Important Client Score" to identify and prioritize high-value customers. Offer exclusive rewards or personalized experiences to retain them.
+
+# At Risk (Churn Risk: 4.9%):
+# Action: Proactively reach out to customers in this segment to address any concerns or issues they may have.
+# Example: Assign dedicated account managers to provide personalized assistance and resolve any queries or complaints promptly.
+##### çalışması devam edenler: bitiş
+
+
+
+#######################
+# Aksiyonlara göre:
+#######################
+
+* Total_Relationship_Count: (bunu herkese öner)
+    * Offer personalized incentives such as discounted interest rates or cashback rewards for opening additional accounts or signing up for new services.
+        * Offer discounted interest rates for opening additional accounts or signing up for new services.
+            * Hoşgeldin faizi
+        * Offer cashback rewards for opening additional accounts or signing up for new services.
+                df.groupby("Total_Relationship_Count")["Target"].mean()
+                # 1   0.256
+                # 2   0.278
+                # 3   0.174
+                # 4   0.118
+                # 5   0.120
+                # 6   0.105
+
+* Borçlanmayı daha ucuza getirmeye yönelik kampanyalar:
+                df.groupby("Target")["Avg_Utilization_Ratio"].mean() # TODO borcu düşük olanların churn etme oranı daha yüksek (x3.5).
+                # 0   0.296
+                # 1   0.162
+
+                df.groupby("Target")["Total_Revolving_Bal"].mean() # TODO
+                # 0   1256.604
+                # 1    672.823
+
+* “Financial Health Checkup"
+    * Product/Service: Provide personalized financial consultations with a dedicated advisor.
+    * Promotion: Offer a complimentary session to review their current financial situation, identify areas for improvement, and create a customized plan to achieve their financial goals.
+    * Objective: Help customers in this segment regain control of their finances and prevent them from becoming dormant or churning.
+        * #Hibernating  #AbouttoSleep #CreditBuilder
+
+* "Welcome Back" campaign
+    * Product/Service: Offer a limited-time promotion for reactivating their account, such as a cashback bonus or a waived annual fee on their credit card.
+    * Promotion: Send targeted emails or direct mailers inviting them to take advantage of exclusive offers upon reactivation.
+    * Objective: Encourage dormant customers to resume their banking activities by providing attractive incentives and reminders of the value of their relationship with the bank.
+        * #Hibernating #Low_Relationship_Count
+
+* Credit Builder program
+    * Aimed at customers with low credit scores, offering secured credit cards or credit-building loans with flexible terms and lower interest rates.
+    * Promotion: Provide an exclusive discount on the annual fee or interest rate for customers who enroll in the "Credit Rebuilder" program within a specified timeframe.
+        * #CreditBuilder
+
+* “Family Bundle” package
+    * .
+        * #Family
+
+* “Career Starter” package
+    * Offering a checking account with budgeting tools, a student loan refinancing option, and access to career development resources.
+    * Promotion: Host networking events or workshops exclusively for young professionals who sign up for the "Career Starter" package, providing opportunities to connect with industry mentors or attend skill-building sessions.
+        * #YoungProf
+
+* Elite Rewards program
+    * Action: Maintain engagement and satisfaction by continuing to deliver exceptional service and rewards.
+        * Example: Send personalized thank-you notes or surprise gifts to top-tier customers to strengthen their loyalty further.
+    * Offer exclusive rewards and benefits, such as VIP customer service, premium travel perks, and enhanced cashback rates, for top-tier customers.
+    * Promotion: Invite customers in the Champions segment to enroll in the elite rewards program, showcasing the luxury and prestige associated with membership.
+    * Objective: Recognize and reward the loyalty of high-value customers, reinforcing their status as brand ambassadors and reducing the likelihood of churn.
+        * #Champions #CantLose
+
+
+* Q4’te Q1’e kıyasla daha fazla harcama yapmaları
+￼
+
+
+
+
+####
+
+
+
+4. df.groupby("Income_Category")["Total_Revolving_Bal"].mean()
+df.groupby("Income_Category")["Total_Trans_Amt"].mean()
+# TODO 1. Çekilen kredi miktarı da, yapılan harcama miktarı da müşteri gelirlerine kıyasla stabil.
+# TODO 2. Bu da, düşük gelirli müşterilerin, Avg_Utilization_Ratio'sunun yani borç ödeme zorluğu oranını artırıyor.
+# TODO 3. Borcu olan müşteriler, bankadan ayrılamıyor.
+# TODO 4. Müşterileri bankada tutmak için A) ürün sat, B) borcunu artır -- mesela kk limitini artırmayı teklif et.
+
+
+6. df.groupby("Target")["Important_client_score"].mean()
+# 0   11.701
+# 1    9.863
+# TODO Banka, önemli müşterileri tutmakta başarılı!
+
+7. df["Contacts_Count_12_mon"].describe().T
+df.groupby("Contacts_Count_12_mon")["Target"].mean() # 6'ların hepsi churn. Yükseldikçe churn olasılığı artıyor.
+# TODO Number of contacts with the bank might indicate dissatisfaction or queries.
+# 0   0.018
+# 1   0.072
+# 2   0.125
+# 3   0.201
+# 4   0.226
+# 5   0.335
+# 6   1.000
+
+8. # TODO öneri: Total_dependent_count fazla olanlara ek kart öner.
+
+
+############
