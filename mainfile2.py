@@ -1,7 +1,7 @@
 from catboost import CatBoostClassifier
-from imblearn.under_sampling import TomekLinks
 from lightgbm import LGBMClassifier
 from scipy.stats import chi2_contingency
+from sklearn.cluster import KMeans
 from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier, VotingClassifier, AdaBoostClassifier
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import (accuracy_score, precision_score, recall_score, f1_score, roc_auc_score, confusion_matrix,
@@ -167,7 +167,6 @@ df.groupby("Total_Relationship_Count")["Target"].mean()
 # 6   0.105
 # TODO churn etmesi beklenen müşteriye, bankanın başka ürünlerinden kampanyalı satış yapmaya çalışmalıyız.
 
-
 df.groupby("Months_Inactive_12_mon")["Target"].mean()
 # 0   0.517
 # 1   0.045
@@ -183,8 +182,6 @@ df.groupby("Target")["Months_on_book"].mean()
 df["Months_on_book"].value_counts()
 df["Months_on_book"].describe().T
 # TODO bu aşağıdakinden Gizem de yapmış, pushlayınca onunkini alırız.
-# Eda says: ben grafikleri çizdirebilmek için buradaki değişiklikleri plottingdemoya aktarmam gerekiyor ama anlamlı değil demişsiniz
-# o yüzden bu on book cat değişkenini almadım eğer almam gerekiyorsa bana söyleyin bunu please
 df["On_book_cat"] = np.where((df["Months_on_book"] < 12), "<1_year", np.where((df["Months_on_book"] < 24), "<2_years", np.where((df["Months_on_book"] < 36), "<3_years", np.where((df["Months_on_book"] < 48), "<4_years", "<5_years"))))
 df["On_book_cat"].value_counts()
 df.groupby("On_book_cat")["Target"].mean() # Anlamlı değil
@@ -203,7 +200,7 @@ df.loc[df['Total_Revolving_Bal'] > 2510].value_counts()
 df["Total_Revolving_Bal"].describe().T
 
 
-df.groupby("Target")["Avg_Utilization_Ratio"].mean() # TODO borcu düşük olanların churn etme oranı daha yüksek (x3.5).
+df.groupby("Target")["Avg_Utilization_Ratio"].mean() # TODO kredisi yükseltilmeyenlerin churn etme oranı daha yüksek (x3.5).
 # 0   0.296
 # 1   0.162
 
@@ -219,7 +216,6 @@ df.groupby("Income_Category")["Total_Trans_Amt"].mean()
 # TODO 3. Borcu olan müşteriler, bankadan ayrılamıyor.
 # TODO 4. Müşterileri bankada tutmak için A) ürün sat, B) borcunu artır -- mesela kk limitini artırmayı teklif et.
 
-# Eda says: bu zaten aşağıda var aslında nerede olmalı?
 df['Total_Amt_Increased'] = np.where((df['Total_Amt_Chng_Q4_Q1'] > 0) & (df['Total_Amt_Chng_Q4_Q1'] < 1), 0, 1)
 
 df["Has_debt"] = np.where((df["Credit_Limit"] > df["Avg_Open_To_Buy"]), 1, 0).astype(int)
@@ -247,22 +243,30 @@ bins = [25, 35, 55, 74]
 df['Customer_Age_Category'] = pd.cut(df['Customer_Age'], bins=bins, labels=labels)
 
 df["Days_Inactive_Last_Year"] = df["Months_Inactive_12_mon"] * 30
-df["Days_Inactive_Last_Year"].value_counts()
 
-# 0'ları 1, 6'ları 5 yapma:
-df["Days_Inactive_Last_Year"].replace(0, 30, inplace=True)
-df["Days_Inactive_Last_Year"].replace(180, 150, inplace=True)
-# şu anda 5 sınıfa ait oldular
+df = df.sort_values(by="Days_Inactive_Last_Year", ascending=True)
+df.reset_index(drop=True, inplace=True)
 
-# Recency score
-# çok inactive (150) olanların score'u 1, az inactive olanların score'u (30) 5 olmalı
 
-df["RecencyScore"] = df["Days_Inactive_Last_Year"].apply(lambda x: 5 if x == 30 else
-                                                        4 if x == 60 else
-                                                        3 if x == 90 else
-                                                        2 if x == 120 else
-                                                        1 if x == 150 else x)
+# Yeni bir "Recency" sütunu oluştur
+df['RecencyScore'] = np.nan
 
+# İlk 2025 satırı 5 olarak ayarla
+df.loc[:2024, 'RecencyScore'] = 5
+
+# Sonraki 2025 satırı 4 olarak ayarla
+df.loc[2025:4049, 'RecencyScore'] = 4
+
+# Sonraki 2027 satırı 3 olarak ayarla
+df.loc[4050:6076, 'RecencyScore'] = 3
+
+# Sonraki 2025 satırı 2 olarak ayarla
+df.loc[6077:8101, 'RecencyScore'] = 2
+
+# Kalan 2025 satırı 1 olarak ayarla
+df.loc[8102:, 'RecencyScore'] = 1
+
+df['RecencyScore'] = df['RecencyScore'].astype(int)
 
 df["MonetaryScore"] = pd.qcut(df["Total_Trans_Amt"], 5, labels=[1, 2, 3, 4, 5])
 df["FrequencyScore"] = pd.qcut(df["Total_Trans_Ct"], 5, labels=[1, 2, 3, 4, 5])
@@ -407,57 +411,38 @@ new_df = rare_encoder(df, 0.01)
 rare_analyser(new_df, "TARGET", cat_cols)
 """
 
-categories_dict = {
-        "Education_Level": ['Uneducated', 'High School', 'College', 'Graduate', 'Post-Graduate', 'Doctorate', np.nan],
-        "Income_Category": ['Less than $40K', '$40K - $60K', '$60K - $80K', '$80K - $120K', '$120K +', np.nan],
-        "Customer_Age_Category": ['Young', 'Middle_Aged', 'Senior'],
-        "Card_Category": ['Blue', 'Silver', 'Gold_Platinum'],
-        "On_book_cat": ["<2_years", "<3_years", "<4_years", "<5_years"]}
 
+# Ordinal encoding:
 def ordinal_encoder(dataframe, col):
-    if col in categories_dict:
-        col_cats = categories_dict[col]
-        ordinal_encoder = OrdinalEncoder(categories=[col_cats])
-        dataframe[col] = ordinal_encoder.fit_transform(dataframe[[col]])
+    edu_cats = ['Uneducated', 'High School', 'College', 'Graduate', 'Post-Graduate', 'Doctorate', np.nan]
+    income_cats = ['Less than $40K', '$40K - $60K', '$60K - $80K', '$80K - $120K', '$120K +', np.nan]
+    customer_age_cat = ['Young', 'Middle_Aged', 'Senior']
+    card_cat = ['Blue', 'Silver', 'Gold_Platinum']
+    on_book_cat = ["<2_years", "<3_years", "<4_years", "<5_years"]
 
-    return dataframe
+    if col == "Education_Level":
+        col_cats = edu_cats
+    if col == "Income_Category":
+        col_cats = income_cats
+    if col == "Customer_Age_Category":
+        col_cats = customer_age_cat
+    if col == "Card_Category":
+        col_cats = card_cat
+    if col == "On_book_cat":
+        col_cats = on_book_cat
 
-for col in df.columns:
-    ordinal_encoder(df, col)
+    ordinal_encoder = OrdinalEncoder(categories=[col_cats])  # burada direkt int alamıyorum çünkü NaN'lar mevcut.
+    df[col] = ordinal_encoder.fit_transform(df[[col]])
 
+    print(df[col].head(20))
+    return df
+
+for col in ["Education_Level", "Income_Category", "Customer_Age_Category", "Card_Category", "On_book_cat"]:
+    df = ordinal_encoder(df, col)
+
+df.columns
 df.head()
 cat_cols, num_cols, cat_but_car = grab_col_names(df)
-
-##### BAŞLANGIÇ Dilara recommendation yaratmaya çalışıyor
-
-#df.groupby("Segment")["Target"].mean()
-# About to Sleep        0.413
-# At Risk               0.049
-# Can't Loose           0.017
-# Champions             0.009
-# Hibernating           0.524
-# Loyal Customers       0.025
-# Need Attention        0.102
-# New Customers         0.128
-# Potential Loyalists   0.141
-# Promising             0.327
-
-##### BİTİŞ Dilara recommendation yaratmaya çalışıyor
-
-df = one_hot_encoder(df, ["Gender"], drop_first=True) # M'ler 1.
-df.rename(columns={"Gender_M": "Gender"}, inplace=True)
-cat_cols, num_cols, cat_but_car = grab_col_names(df)
-
-# KNN Imputer
-numeric_columns = df.select_dtypes(include=['float64', 'int64']).columns
-categorical_columns = [col for col in df.columns if col not in numeric_columns]
-df_numeric = df[numeric_columns]
-imputer = KNNImputer(n_neighbors=10)
-df_numeric_imputed = pd.DataFrame(imputer.fit_transform(df_numeric), columns=numeric_columns)
-df = pd.concat([df_numeric_imputed, df[categorical_columns]], axis=1)
-df["Education_Level"] = df["Education_Level"].round().astype(int)
-df["Income_Category"] = df["Income_Category"].round().astype(int)
-
 
 # One-hot encoding:
 df = one_hot_encoder(df, ["Gender",
@@ -471,19 +456,24 @@ df = one_hot_encoder(df, ["Gender",
                           'Dependent_count',
                           'Total_Relationship_Count',
                           'Months_Inactive_12_mon',
-                          'Contacts_Count_12_mon'],
-                          drop_first=True)
-
-# Gizemin yarattığı ve belki onehot'a girecek kolonlar:
-# 'Year_on_book', "RFM_SCORE", Segment, Cluster, RFMSegment, cluster_no
+                          'Contacts_Count_12_mon',
+                          'MonetaryScore',
+                          'FrequencyScore'], drop_first=True)
 
 useless_cols = [col for col in df.columns if df[col].nunique() == 2 and
                 (df[col].value_counts() / len(df) < 0.01).any(axis=None)]
-df.drop(useless_cols, axis=1, inplace=True)
+# df.drop(useless_cols, axis=1, inplace=True)
 
 df.head()
 dff = df.copy()
 df = dff.copy()
+
+# Nan doldurma:
+imputer = KNNImputer(n_neighbors=10)
+df = pd.DataFrame(imputer.fit_transform(df), columns=df.columns)
+
+df["Education_Level"] = df["Education_Level"].round().astype(int)
+df["Income_Category"] = df["Income_Category"].round().astype(int)
 
 
 cat_cols, num_cols, cat_but_car = grab_col_names(df)
@@ -496,6 +486,40 @@ for col in df.columns:
 
 cat_cols, num_cols, cat_but_car = grab_col_names(df)
 
+# Credit limit - total revolvinng bal = avg open to buy
+# df[["Credit_Limit","Total_Revolving_Bal","Avg_Open_To_Buy"]].head(20)
+#
+# df["fark"] = df["Credit_Limit"] - df["Total_Revolving_Bal"]
+#
+# df[["fark", "Avg_Open_To_Buy"]].head(50)
+
+# total revolving bal / credit limit = avg_utilication_ratio
+# df[["Total_Revolving_Bal","Credit_Limit","Avg_Utilization_Ratio"]].head(20)
+#
+# df["bölüm"] = df["Total_Revolving_Bal"] / df["Credit_Limit"]
+#
+# df[["bölüm", "Avg_Utilization_Ratio"]].head(50)
+
+
+# Scatter plot çizimi
+plt.figure(figsize=(10, 10))
+sns.scatterplot(x='Credit_Limit', y='Total_Revolving_Bal', hue='Income_Category', data=df, s=20)
+plt.xlabel('Credit Limit')
+plt.ylabel('Total Revolving Balance')
+plt.title('Scatter Plot of Total Revolving Balance vs. Credit Limit by Income Category')
+plt.tight_layout()
+plt.show()
+
+
+# Müşterinin yaşını ve bankada geçirdiği süreyi birleştirerek uzun süreli müşteri olup olmadığını gösteren bir değişken oluşturma
+# Ay bilgilerini yıla çevirerek yeni bir sütun oluşturma
+df['Year_on_book'] = df['Months_on_book'] // 12
+df['Year_on_book'].value_counts()
+# Year_on_book
+# 3    5508
+# 2    3115
+# 4     817
+# 1     687
 
 
 """rfm skorları ile segmentasyon oluşturma"""
@@ -509,7 +533,7 @@ cat_cols, num_cols, cat_but_car = grab_col_names(df)
 seg_map = {
         r'[1-2][1-2]': 'Hibernating',
         r'[1-2][3-4]': 'At Risk',
-        r'[1-2]5': 'Can\'t Lose',
+        r'[1-2]5': 'Can\'t Loose',
         r'3[1-2]': 'About to Sleep',
         r'33': 'Need Attention',
         r'[3-4][4-5]': 'Loyal Customers',
@@ -524,17 +548,24 @@ df['Segment'] = df['RecencyScore'].astype(str) + df['FrequencyScore'].astype(str
 df['Segment'] = df['Segment'].replace(seg_map, regex=True)
 df.head(40)
 
+# # Belirtilen sütunları seçerek yeni bir DataFrame oluşturalım
+# rfm = df[['Total_Trans_Ct', 'Total_Trans_Amt', 'Days_Inactive_Last_Year']]
 
-# Feature scaling (robust):
-# TODO GBM için scale etmeden deneyeceğiz.
-rs = RobustScaler()
-df[num_cols] = rs.fit_transform(df[num_cols])
-df[["Days_Inactive_Last_Year"]] = rs.fit_transform(df[["Days_Inactive_Last_Year"]])
+
+# k-means ile müşteri segmentasyonu öncesi standartlaştırmayı yapmak gerek
+# Min-Max ölçeklendirme
+from sklearn.preprocessing import MinMaxScaler
+
+
+sc = MinMaxScaler((0,1))
+df[['Days_Inactive_Last_Year','Total_Trans_Ct', 'Total_Trans_Amt']] = sc.fit_transform(df[['Days_Inactive_Last_Year', 'Total_Trans_Ct', 'Total_Trans_Amt']])
+
+
 
 
 from sklearn.cluster import KMeans
 # model fit edildi.
-kmeans = KMeans(n_clusters=4, max_iter=50, random_state=1)
+kmeans = KMeans(n_clusters = 4, max_iter=50)
 kmeans.fit(df[['Days_Inactive_Last_Year','Total_Trans_Ct', 'Total_Trans_Amt']])
 
 df["cluster_no"] = kmeans.labels_
@@ -543,40 +574,43 @@ df.groupby("cluster_no")["Segment"].value_counts()
 
 ssd = []
 
-K = range(1, 30)
+K = range(1,30)
 
 for k in K:
-    kmeans = KMeans(n_clusters=k, random_state=1).fit(df[['Days_Inactive_Last_Year', 'Total_Trans_Ct', 'Total_Trans_Amt']])
+    kmeans = KMeans(n_clusters = k).fit(df[['Days_Inactive_Last_Year', 'Total_Trans_Ct', 'Total_Trans_Amt']])
     ssd.append(kmeans.inertia_) #inertia her bir k değeri için ssd değerini bulur.
-
 
 
 # Optimum küme sayısını belirleme
 from yellowbrick.cluster import KElbowVisualizer
-kmeans = KMeans(random_state=1)
-elbow = KElbowVisualizer(kmeans, k=(2, 20))
-elbow.fit(df[['Days_Inactive_Last_Year', 'Total_Trans_Ct', 'Total_Trans_Amt']])
-elbow.show()
-elbow.elbow_value_
+kmeans = KMeans()
+visualizer = KElbowVisualizer(kmeans, k=(2,20))
+visualizer.fit(df[['Days_Inactive_Last_Year', 'Total_Trans_Ct', 'Total_Trans_Amt']])
+visualizer.poof()
 
 # yeni optimum kümse sayısı ile model fit edilmiştir.
-kmeans = KMeans(n_clusters=elbow.elbow_value_, random_state=1).fit(df[['Days_Inactive_Last_Year', 'Total_Trans_Ct', 'Total_Trans_Amt']])
+kmeans = KMeans(n_clusters = 6).fit(df[['Days_Inactive_Last_Year', 'Total_Trans_Ct', 'Total_Trans_Amt']])
 
 
 # Cluster_no 0'dan başlamaktadır. Bunun için 1 eklenmiştir.
 df["cluster_no"] = kmeans.labels_
 df["cluster_no"] = df["cluster_no"] + 1
 
+df.head()
+
+df["cluster_no"].value_counts()
+
+df[["cluster_no", "Segment"]].head(40)
+
+
 df.groupby("cluster_no")["Segment"].value_counts()
 
-cat_cols, num_cols, cat_but_car = grab_col_names(df)
+# Feature scaling (robust):
+# TODO GBM için scale etmeden deneyeceğiz.
+rs = RobustScaler()
+df[num_cols] = rs.fit_transform(df[num_cols])
 
-df[num_cols].head()
-#33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333
-
-
-
-
+df["Cluster"].value_counts()
 
 
 # Korelasyon Heatmap:
@@ -610,34 +644,12 @@ all_independent_variables = df[num_cols]
 vif_results = calculate_vif(all_independent_variables)
 print(vif_results)
 
-df[['MonetaryScore', 'FrequencyScore']] = df[['MonetaryScore', 'FrequencyScore']].astype(int)
-
-dff = df.copy()
-df.head()
+# Model:
 y = df["Target"]
-X = df.drop(["Target", "Segment"], axis=1)
+X = df.drop(["Target"], axis=1)
 
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
-# Undersampling (Tomek Links)
-
-
-# summarize class distribution
-counter = Counter(y)
-print(counter) # {0: 8500, 1: 1627}
-# define the undersampling method
-undersample = TomekLinks()
-# transform the dataset
-X, y = undersample.fit_resample(X, y)
-# summarize the new class distribution
-counter = Counter(y)
-print(counter) # {0: 8352, 1: 1627}
-
-
-
-
-
-# Model:
 def model_metrics(X_train, y_train, X_test, y_test):
     print("Base Models....")
     classifiers = [('LR', LogisticRegression()),
@@ -648,8 +660,9 @@ def model_metrics(X_train, y_train, X_test, y_test):
                    ('Adaboost', AdaBoostClassifier()),
                    ('GBM', GradientBoostingClassifier()),
                    ('XGBoost', XGBClassifier(use_label_encoder=False, eval_metric='logloss')),
-                   ('LightGBM', LGBMClassifier(force_col_wise=True)),
-                   ('CatBoost', CatBoostClassifier(verbose=False))]
+                   ('LightGBM', LGBMClassifier()),
+                   ('CatBoost', CatBoostClassifier(verbose=False))
+                   ]
 
     for name, classifier in classifiers:
         model = classifier.fit(X_train, y_train)
@@ -662,9 +675,12 @@ def model_metrics(X_train, y_train, X_test, y_test):
 
 model_metrics(X_train, y_train, X_test, y_test)
 
-# Recall 1 sonuçları en yüksek olanlar XGBOOST, LIGHTGBM ve GBM olduğu için hiperparametre optimizasyonuna onlarla devam ediyoruz:
 # Hiperparametre Optimizasyonu ve Model:
 
+rf_params = {"max_depth": [5, 10, 15, None],
+             #"max_features": [2, 4, 8, 16, 30],
+             "min_samples_split": [2, 5, 10],
+             "n_estimators": [50, 100, 200, 300]}
 
 xgboost_params = {"learning_rate": [0.01, 0.05, 0.1, 0.5],
                   "max_depth": [3, 5, 7, 10],
@@ -674,20 +690,28 @@ lightgbm_params = {"learning_rate": [0.01, 0.05, 0.1, 0.5],
                    "n_estimators": [50, 100, 200, 300],
                    "max_depth": [3, 5, 7, 10]}
 
+gbm_params = {"learning_rate": [0.01, 0.1, 0.5, 1],
+              "n_estimators": [50, 100, 200, 300],
+              "max_depth": [3, 5, 7, 10],
+              "subsample": [0.5, 0.75, 1.0]}
+
 catboost_params = {"learning_rate": [0.01, 0.05, 0.1, 0.5],
                    "depth": [3, 5, 7, 10],
                    "iterations": [50, 100, 200, 300],
                    "subsample": [0.5, 0.75, 1.0]}
-catboost_params_optimized = {
-    "learning_rate": [0.05, 0.1],
-    "depth": [5, 7],
-    "iterations": [100, 200],
-    "subsample": [0.8, 1.0]
-}
 
-classifiers = ([#('XGBoost', XGBClassifier(use_label_encoder=False, eval_metric='logloss'), xgboost_params),
-                #('LightGBM', LGBMClassifier(force_col_wise=True), lightgbm_params),
-                ('CatBoost', CatBoostClassifier(verbose=False), catboost_params_optimized)])
+adaboost_params = { "n_estimators": [50, 100, 200, 300],
+                    "learning_rate": [0.01, 0.05, 0.1, 0.5],
+                    "base_estimator__max_depth": [1, 2, 3, 4],
+                    "random_state": [None, 42]}
+
+classifiers = ([("RF", RandomForestClassifier(), rf_params),
+                ('XGBoost', XGBClassifier(use_label_encoder=False, eval_metric='logloss'), xgboost_params),
+                ('LightGBM', LGBMClassifier(force_col_wise=True), lightgbm_params),
+                ('GBM', GradientBoostingClassifier(), gbm_params),
+                ('CatBoost', CatBoostClassifier(verbose=False), catboost_params),
+                ('AdaBoost', CatBoostClassifier(), adaboost_params),
+                ])
 
 
 def hyperparameter_optimization(X_train, y_train, X_test, y_test, cv=3, scoring="roc_auc"):
@@ -717,70 +741,9 @@ def hyperparameter_optimization(X_train, y_train, X_test, y_test, cv=3, scoring=
 
 hyperparameter_optimization(X_train, y_train, X_test, y_test)
 
-# En iyisi CatBoost geldiği için bunu seçiyoruz.
-
 ################################
 # Analyzing Model Complexity with Learning Curves (BONUS)
 ################################
-
-XX = X.copy()
-yy = y.copy()
-
-
-def val_curve_params(model, X, y, param_name, param_range, scoring="roc_auc", cv=10):
-    train_score, test_score = validation_curve(
-        model, X=X, y=y, param_name=param_name, param_range=param_range, scoring=scoring, cv=cv)
-
-    mean_train_score = np.mean(train_score, axis=1)
-    mean_test_score = np.mean(test_score, axis=1)
-
-    plt.plot(param_range, mean_train_score,
-             label="Training Score", color='b')
-
-    plt.plot(param_range, mean_test_score,
-             label="Validation Score", color='g')
-
-    plt.title(f"Validation Curve for {type(model).__name__}")
-    plt.xlabel(f"Number of {param_name}")
-    plt.ylabel(f"{scoring}")
-    plt.tight_layout()
-    plt.legend(loc='best')
-    plt.show(block=True)
-
-
-catboost_params = {"learning_rate": [0.01, 0.05, 0.1, 0.5],
-                   "depth": [3, 5, 7, 10],
-                   "iterations": [50, 100, 200, 300],
-                   "subsample": [0.5, 0.75, 1.0]}
-catboost_params_optimized = {
-    "learning_rate": [0.05, 0.1],
-    "depth": [5, 7],
-    "iterations": [100, 200],
-    "subsample": [0.8, 1.0]
-}
-
-
-cb_model = CatBoostClassifier(random_state=17, verbose=False)
-
-for i in range(len(catboost_params_optimized)):
-    val_curve_params(cb_model, XX, yy, catboost_params_optimized[i][0], catboost_params_optimized[i][1])
-
-
-
-catboost_params[0][1]
-
-
-
-################################
-# Analyzing Model Complexity with Learning Curves (BONUS)
-################################
-
-
-
-################################
-# Analyzing Model Complexity with Learning Curves (BONUS)
-################################
-
 def val_curve_params(model, X, y, param_name, param_range, scoring="roc_auc", cv=10):
     train_score, test_score = validation_curve(
         model, X=X, y=y, param_name=param_name, param_range=param_range, scoring=scoring, cv=cv)
@@ -814,6 +777,4 @@ for i in range(len(rf_val_params)):
     val_curve_params(rf_model, X, y, rf_val_params[i][0], rf_val_params[i][1])
 
 rf_val_params[0][1]
-
-
 

@@ -5,24 +5,29 @@ st.set_page_config(
     page_icon="👋",
 )
 
-st.write("# Welcome Miuul Bank! 👋")
+st.write("# Welcome Churninator! 👋")
 
 st.sidebar.success("Select a demo above.")
 
 st.markdown(
     """
-    Streamlit is an open-source app framework built specifically for
-    Machine Learning and Data Science projects.
-    **👈 Select a demo from the sidebar** to see some examples
-    of what Streamlit can do!
-    ### Want to learn more?
-    - Check out [streamlit.io](https://streamlit.io)
-    - Jump into our [documentation](https://docs.streamlit.io)
-    - Ask a question in our [community
-        forums](https://discuss.streamlit.io)
-    ### See more complex demos
-    - Use a neural net to [analyze the Udacity Self-driving Car Image
-        Dataset](https://github.com/streamlit/demo-self-driving)
-    - Explore a [New York City rideshare dataset](https://github.com/streamlit/demo-uber-nyc-pickups)
+   **Churninator: Finansal Geleceğiniz İçin Veriyle Güçlenin**
+
+Finansal başarınızı artırmak için güçlü bir silahınız var: **Churninator**. Churninator ile işletmenizin mali geleceğini dönüştürüyor ve veri bilimi ile makine öğrenmesinin gücünü finansal danışmanlığınıza entegre ediyoruz.
+
+**Churninator**, bankalardaki müşteri churn riskini önceden tahmin eden bir model olarak işletmenizin sadık müşteri tabanını korumanıza yardımcı olurken, müşteri kaybını minimize etmenize olanak tanır. Bu yenilikçi çözüm, rekabet avantajınızı artırır ve işletmenizin karar alma süreçlerini optimize eder.
+
+**Churninator ile Avantajlarınız:**
+
+- **Güvenilir Tahminler:** Churninator, veri bilimi ve makine öğrenmesinin gücünü kullanarak banka müşterilerinizin ayrılma eğilimlerini doğru bir şekilde tahmin eder, böylece proaktif stratejiler oluşturabilirsiniz.
+- **Sadık Müşteri Tabanı:** Churninator'un yardımıyla, müşteri kaybını minimize ederek, işletmenizin karlılığını ve uzun vadeli büyüme potansiyelinizi artırabilirsiniz.
+- **Rekabet Üstünlüğü:** Veriye dayalı kararlarınızla, pazardaki değişimlere hızla adapte olabilir ve rakiplerinizin önüne geçebilirsiniz.
+- **Özelleştirilmiş Çözümler:** Uzman ekibimiz, işletmenizin benzersiz ihtiyaçlarına uygun özelleştirilmiş çözümler sunar, böylece maksimum değer elde edersiniz.
+
+**Churninator ile Geleceğe Hazır Olun!**
+
+Geleceğinize yön vermek için bugün **Churninator** ile tanışın. Churninator ile güçlendirilmiş bir finansal geleceğe adım atın. İletişime geçmek için bizimle bugün temas kurun!
+
+**DEG Bilgi Teknolojileri Danışmanlık ve Dağıtım A.Ş.**
 """
 )

@@ -11,6 +11,10 @@ from sklearn.impute import KNNImputer
 from sklearn.neighbors import LocalOutlierFactor
 from pywaffle import Waffle
 from sklearn.preprocessing import OrdinalEncoder
+import warnings
+warnings.simplefilter(action="ignore")
+
+
 
 st.set_page_config(page_title="Plotting Demo", page_icon="📈", layout="wide")
 
@@ -37,12 +41,6 @@ def grab_col_names(dataframe, cat_th=9, car_th=20):
     num_cols = [col for col in dataframe.columns if dataframe[col].dtypes != "O"]
     num_cols = [col for col in num_cols if col not in num_but_cat]
 
-    print(f"Observations: {dataframe.shape[0]}")
-    print(f"Variables: {dataframe.shape[1]}")
-    print(f"cat_cols: {len(cat_cols)}")
-    print(f"num_cols: {len(num_cols)}")
-    print(f"cat_but_car: {len(cat_but_car)}")
-    print(f"num_but_car: {len(num_but_cat)}")
     return cat_cols, num_cols, cat_but_car
 
 def outlier_thresholds(dataframe, col_name, q1=0.05, q3=0.95):
@@ -62,12 +60,6 @@ def check_outlier(dataframe, col_name):
 
 def grab_outliers(dataframe, col_name, index=False):
     low, up = outlier_thresholds(dataframe, col_name)
-    print(dataframe[((dataframe[col_name] < low) | (dataframe[col_name] > up))].shape[0])
-    # if dataframe[((dataframe[col_name] < low) | (dataframe[col_name] > up))].shape[0] > 10:
-    #     print(dataframe[((dataframe[col_name] < low) | (dataframe[col_name] > up))].head())
-    # else:
-    #     print(dataframe[((dataframe[col_name] < low) | (dataframe[col_name] > up))])
-
     if index:
         outlier_index = dataframe[((dataframe[col_name] < low) | (dataframe[col_name] > up))].index
         return outlier_index
@@ -154,14 +146,12 @@ df['Customer_Age_Category'] = pd.cut(df['Customer_Age'], bins=bins, labels=label
 df["Days_Inactive_Last_Year"] = df["Months_Inactive_12_mon"] * 30
 df["Days_Inactive_Last_Year"].value_counts()
 
-# 0'ları 1, 6'ları 5 yapma:
+
 df["Days_Inactive_Last_Year"].replace(0, 30, inplace=True)
 df["Days_Inactive_Last_Year"].replace(180, 150, inplace=True)
-# şu anda 5 sınıfa ait oldular
 
-# Recency score
-# çok inactive (150) olanların score'u 1, az inactive olanların score'u (30) 5 olmalı
 
+# RFM
 df["RecencyScore"] = df["Days_Inactive_Last_Year"].apply(lambda x: 5 if x == 30 else
                                                         4 if x == 60 else
                                                         3 if x == 90 else
@@ -170,13 +160,69 @@ df["RecencyScore"] = df["Days_Inactive_Last_Year"].apply(lambda x: 5 if x == 30 
 
 df["MonetaryScore"] = pd.qcut(df["Total_Trans_Amt"], 5, labels=[1, 2, 3, 4, 5])
 df["FrequencyScore"] = pd.qcut(df["Total_Trans_Ct"], 5, labels=[1, 2, 3, 4, 5])
-# # Total_Trans_Amt = Monetary
-# # Total_Trans_Ct = Frequency
-# # Days_Inactive_Last_Year = Recency
+
+seg_map = {
+        r'[1-2][1-2]': 'Hibernating',
+        r'[1-2][3-4]': 'At Risk',
+        r'[1-2]5': 'Can\'t Lose',
+        r'3[1-2]': 'About to Sleep',
+        r'33': 'Need Attention',
+        r'[3-4][4-5]': 'Loyal Customers',
+        r'41': 'Promising',
+        r'51': 'New Customers',
+        r'[4-5][2-3]': 'Potential Loyalists',
+        r'5[4-5]': 'Champions'
+}
+
+# segment oluşturma (Recency + Frequency)
+df['Segment'] = df['RecencyScore'].astype(str) + df['FrequencyScore'].astype(str)
+df['Segment'] = df['Segment'].replace(seg_map, regex=True)
+df.head(40)
 
 
-#buraya bişeyler eklenecek rfm güncel hali
+# k-means ile müşteri segmentasyonu öncesi standartlaştırmayı yapmak gerek
+# Min-Max ölçeklendirme
+from sklearn.preprocessing import MinMaxScaler
 
+
+sc = MinMaxScaler((0,1))
+df[['Days_Inactive_Last_Year','Total_Trans_Ct', 'Total_Trans_Amt']] = sc.fit_transform(df[['Days_Inactive_Last_Year', 'Total_Trans_Ct', 'Total_Trans_Amt']])
+
+
+from sklearn.cluster import KMeans
+# model fit edildi.
+kmeans = KMeans(n_clusters = 4, max_iter=50)
+kmeans.fit(df[['Days_Inactive_Last_Year','Total_Trans_Ct', 'Total_Trans_Amt']])
+
+df["cluster_no"] = kmeans.labels_
+df["cluster_no"] = df["cluster_no"] + 1
+
+
+ssd = []
+
+K = range(1,30)
+
+for k in K:
+    kmeans = KMeans(n_clusters = k).fit(df[['Days_Inactive_Last_Year', 'Total_Trans_Ct', 'Total_Trans_Amt']])
+    ssd.append(kmeans.inertia_) #inertia her bir k değeri için ssd değerini bulur.
+
+
+# Optimum küme sayısını belirleme
+from yellowbrick.cluster import KElbowVisualizer
+kmeans = KMeans()
+elbow = KElbowVisualizer(kmeans, k=(2, 20))
+elbow.fit(df[['Days_Inactive_Last_Year', 'Total_Trans_Ct', 'Total_Trans_Amt']])
+elbow.show()
+elbow.elbow_value_
+
+
+# yeni optimum kümse sayısı ile model fit edilmiştir.
+kmeans = KMeans(n_clusters = elbow.elbow_value_).fit(df[['Days_Inactive_Last_Year', 'Total_Trans_Ct', 'Total_Trans_Amt']])
+
+
+# Cluster_no 0'dan başlamaktadır. Bunun için 1 eklenmiştir.
+df["cluster_no"] = kmeans.labels_
+df["cluster_no"] = df["cluster_no"] + 1
 
 
 
@@ -188,12 +234,7 @@ combine_categories(df, "Gender", "MonetaryScore", "Gender_&_Monetary")
 
 df['Total_Amt_Increased'] = np.where((df['Total_Amt_Chng_Q4_Q1'] >= 0) & (df['Total_Amt_Chng_Q4_Q1'] < 1), 0, 1)
 df['Total_Ct_Increased'] = np.where((df['Total_Ct_Chng_Q4_Q1'] >= 0) & (df['Total_Ct_Chng_Q4_Q1'] < 1), 0, 1)
-df['Total_Ct_Chng_Q4_Q1'].describe().T
-df['Total_Amt_Chng_Q4_Q1'].describe().T
-df.loc[df['Total_Amt_Chng_Q4_Q1'] == 0]
 
-# Total_Ct_Chng_Q4_Q1= Q4/Q1 olduğuna göre, bunun 0 olduğu yerlerde Q4 = 0, yani recency'si 3 ay olur.
-df.loc[df["Total_Ct_Chng_Q4_Q1"]==0]
 
 # İşlem sayısı ve miktarı pattern'leri:
 # İşlem sayısı aynı kalıp, harcama miktarı artanlar: (belki daha çok para kazanmaya başlamışlardır)(TODO kredi limiti ile incele)
@@ -216,23 +257,12 @@ df.loc[(df["Total_Ct_Chng_Q4_Q1"] < 1) & (df["Total_Amt_Chng_Q4_Q1"] == 1), "Ct_
 # İşlem sayısı azalmış, miktar da azalmış. Churn eder mi acaba?
 df.loc[(df["Total_Ct_Chng_Q4_Q1"] < 1) & (df["Total_Amt_Chng_Q4_Q1"] < 1), "Ct_vs_Amt"] = "Dec_ct_dec_amt"
 # (df.loc[(df["Total_Ct_Chng_Q4_Q1"] < 1) & (df["Total_Amt_Chng_Q4_Q1"] < 1)])["Target"].mean() # 0.17
-df.head()
-
-df.groupby("Ct_vs_Amt")["Target"].mean()
-# Count arttıkça churn etme olasılığı azalıyor.
-df.groupby("Target")["Total_Trans_Ct"].mean()
 
 
-df["Contacts_Count_12_mon"].describe().T
-df.groupby("Contacts_Count_12_mon")["Target"].mean() # 6'ların hepsi churn. Yükseldikçe churn olasılığı artıyor.
-# TODO Number of contacts with the bank might indicate dissatisfaction or queries.
-# 0   0.018
-# 1   0.072
-# 2   0.125
-# 3   0.201
-# 4   0.226
-# 5   0.335
-# 6   1.000
+
+
+
+
 
 
 # Personalar
@@ -246,52 +276,13 @@ df["High_net_worth_individual"] = ((df['Income_Category'] == '$120K +') & (df['T
 df["Rewards_maximizer"] = ((df['Total_Trans_Amt'] > 10000) & (df['Total_Revolving_Bal'] == 0)).astype(int) # For the Rewards_maximizer column, the threshold for Total_Trans_Amt is also set at $10000. Since rewards maximizers are individuals who strategically maximize rewards and benefits from credit card usage, it's reasonable to expect that they engage in higher levels of spending. Therefore, the threshold of $10000 for Total_Trans_Amt appears appropriate for identifying rewards maximizers, considering that it captures individuals with relatively high spending habits.
 df["May_marry"] = ((df["Age_&_Marital"] == "Young_Single") & (df['Dependent_count'] == 0)).astype(int)
 
-# Total_Trans_Amt threshold'larını inceleyip üsttekiler için ayarlama yapalım (üsttekiler ayarlama yapılmış hali):
-(df.loc[df['Total_Trans_Amt'] > 10000]).groupby("Income_Category")["Customer_Age"].mean()
-(df.loc[df['Total_Trans_Amt'] > 10000]).groupby("Income_Category").count()
-df['Total_Trans_Amt'].describe().T
-
-df.head()
-
-# TODO öneri: Total_dependent_count fazla olanlara ek kart öner.
-
-df.groupby("Income_Category")["Avg_Open_To_Buy"].mean()
-df.groupby("Income_Category")["Credit_Limit"].mean()
 
 df["Product_by_Year"] = df["Total_Relationship_Count"] / (df["Months_on_book"] / 12)
-df["Product_by_Year"].describe().T
-num_summary(df, "Product_by_Year", plot=True)
-
-# Müşterinin yaşını ve bankada geçirdiği süreyi birleştirerek uzun süreli müşteri olup olmadığını gösteren bir değişken oluşturma
-# Ay bilgilerini yıla çevirerek yeni bir sütun oluşturma
 df['Year_on_book'] = df['Months_on_book'] // 12
-df['Year_on_book'].value_counts()
-# Year_on_book
-# 3    5508
-# 2    3115
-# 4     817
-# 1     687
 
-
-df.head(20)
-df.shape
 cat_cols, num_cols, cat_but_car = grab_col_names(df)
-df.info()
-
 
 # Encoding:
-dff = df.copy()
-
-# Rare analyser:
-def rare_analyser(dataframe, target, cat_cols):
-    for col in cat_cols:
-        print(col, ":", len(dataframe[col].value_counts()))
-        print(pd.DataFrame({"COUNT": dataframe[col].value_counts(),
-                            "RATIO": dataframe[col].value_counts() / len(dataframe),
-                            "TARGET_MEAN": dataframe.groupby(col)[target].mean()}), end="\n\n\n")
-
-rare_analyser(df, "Target", cat_cols)
-
 # Rare encoding:
 df["Card_Category"] = df["Card_Category"].apply(lambda x: "Gold_Platinum" if x == "Platinum" or x == "Gold" else x)
 df["Months_Inactive_12_mon"] = df["Months_Inactive_12_mon"].apply(lambda x: 1 if x == 0 else x)
@@ -299,72 +290,43 @@ df["Ct_vs_Amt"] = df["Ct_vs_Amt"].apply(lambda x: "Dec_ct_inc_amt" if x == "Dec_
 df["Ct_vs_Amt"] = df["Ct_vs_Amt"].apply(lambda x: "Inc_ct_inc_amt" if x == "Same_ct_inc_amt" else x)
 df["Contacts_Count_12_mon"] = df["Contacts_Count_12_mon"].apply(lambda x: 5 if x == 6 else x)
 df["Card_&_Age"] = df["Card_&_Age"].apply(lambda x: "Rare" if df["Card_&_Age"].value_counts()[x] < 30 else x)
-df["Card_&_Age"].value_counts()
 
 cat_cols, num_cols, cat_but_car = grab_col_names(df)
 
-""" Kullanmadık ama mesela Card_&_Age'de ve Age_&_Marital'da 0.005 ratio'lu kategoriler var
-def rare_encoder(dataframe, rare_perc):
-    temp_df = dataframe.copy()
-
-    rare_columns = [col for col in temp_df.columns if temp_df[col].dtypes == 'O'
-                    and (temp_df[col].value_counts() / len(temp_df) < rare_perc).any(axis=None)] # any() çünkü col'un value_counts/len'ini yani value'larının yüzdelik ratio'larını alınca 0.01'den düşük herhangi biri (ANY) varsa, col'u al getir diyor.
-
-    for var in rare_columns:
-        tmp = temp_df[var].value_counts() / len(temp_df)     # bu ratio tablosunu, indeksi value (e.g. male/female), value'su ratio olacak şekilde pd.series (indeksli list) olarak kaydettim.
-        rare_labels = tmp[tmp < rare_perc].index    # sonra bu listede değeri 0.01'den küçük olanların indexini=label'ını kaydettim.
-        temp_df[var] = np.where(temp_df[var].isin(rare_labels), 'Rare', temp_df[var])
-        #temp_df["EMERGENCYSTATE_MODE"].isin(rare_labels) # output: tek bir sütun için her bir girdinin rare_labels'da olup olmamasına göre T/F döndürdü.
-
-        # type(rare_columns) = pandas.series
-        # tmp.dtype = float
-
-    return temp_df
-
-
-new_df = rare_encoder(df, 0.01)
-
-rare_analyser(new_df, "TARGET", cat_cols)
-"""
-
-
 # Ordinal encoding:
+categories_dict = {
+        "Education_Level": ['Uneducated', 'High School', 'College', 'Graduate', 'Post-Graduate', 'Doctorate', np.nan],
+        "Income_Category": ['Less than $40K', '$40K - $60K', '$60K - $80K', '$80K - $120K', '$120K +', np.nan],
+        "Customer_Age_Category": ['Young', 'Middle_Aged', 'Senior'],
+        "Card_Category": ['Blue', 'Silver', 'Gold_Platinum'],
+        "On_book_cat": ["<2_years", "<3_years", "<4_years", "<5_years"]}
+
 def ordinal_encoder(dataframe, col):
-    edu_cats = ['Uneducated', 'High School', 'College', 'Graduate', 'Post-Graduate', 'Doctorate', np.nan]
-    income_cats = ['Less than $40K', '$40K - $60K', '$60K - $80K', '$80K - $120K', '$120K +', np.nan]
-    customer_age_cat = ['Young', 'Middle_Aged', 'Senior']
-    card_cat = ['Blue', 'Silver', 'Gold_Platinum']
-    on_book_cat = ["<2_years", "<3_years", "<4_years", "<5_years"]
+    if col in categories_dict:
+        col_cats = categories_dict[col]
+        ordinal_encoder = OrdinalEncoder(categories=[col_cats])
+        dataframe[col] = ordinal_encoder.fit_transform(dataframe[[col]])
 
-    if col == "Education_Level":
-        col_cats = edu_cats
-    if col == "Income_Category":
-        col_cats = income_cats
-    if col == "Customer_Age_Category":
-        col_cats = customer_age_cat
-    if col == "Card_Category":
-        col_cats = card_cat
-    if col == "On_book_cat":
-        col_cats = on_book_cat
+    return dataframe
 
-    ordinal_encoder = OrdinalEncoder(categories=[col_cats])  # burada direkt int alamıyorum çünkü NaN'lar mevcut.
-    df[col] = ordinal_encoder.fit_transform(df[[col]])
+for col in df.columns:
+    ordinal_encoder(df, col)
 
-    print(df[col].head(20))
-    return df
-
-for col in ["Education_Level", "Income_Category", "Customer_Age_Category", "Card_Category", "On_book_cat"]:
-    df = ordinal_encoder(df, col)
-
-df.columns
 df.head()
 cat_cols, num_cols, cat_but_car = grab_col_names(df)
 
 
-# Nan doldurma:
-imputer = KNNImputer(n_neighbors=10)
-df = pd.DataFrame(imputer.fit_transform(df), columns=df.columns)
 
+df = one_hot_encoder(df, ["Gender"], drop_first=True)
+df.rename(columns={"Gender_M": "Gender"}, inplace=True)
+
+# KNN Imputer
+numeric_columns = df.select_dtypes(include=['float64', 'int64']).columns
+categorical_columns = [col for col in df.columns if col not in numeric_columns]
+df_numeric = df[numeric_columns]
+imputer = KNNImputer(n_neighbors=10)
+df_numeric_imputed = pd.DataFrame(imputer.fit_transform(df_numeric), columns=numeric_columns)
+df = pd.concat([df_numeric_imputed, df[categorical_columns]], axis=1)
 df["Education_Level"] = df["Education_Level"].round().astype(int)
 df["Income_Category"] = df["Income_Category"].round().astype(int)
 
@@ -373,10 +335,27 @@ df["Income_Category"] = df["Income_Category"].round().astype(int)
 
 
 
-
-
 #33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333
 #tüm görselleştirme
+
+# Treemap
+fig = px.treemap(df, path=['Target', 'Segment'], title="Target ve Segment")
+fig.update_layout(height=600, width=800)
+st.plotly_chart(fig)
+
+#bubblechart
+fig = px.scatter(
+    df,
+    x="Total_Amt_Chng_Q4_Q1",
+    y="Avg_Utilization_Ratio",
+    size="Important_client_score",
+    color="Segment",
+    hover_name="Customer_Age",
+    size_max=60,
+    title="Müşteri Değer Skorlarına Göre Bubble Chart"
+)
+st.plotly_chart(fig)
+
 
 
 # Ürün sayısı arttıkça Churn olasılığı azalıyor
@@ -480,46 +459,13 @@ st.plotly_chart(fig)
 
 #büyük Pasta
 #'Education_Level' 'Income_Category' bunları da koycam Nanlar sorun çıkardı
-fig = px.sunburst(df, path=['Target', 'Gender', 'Customer_Age_Category', 'Marital_Status'])
+fig = px.sunburst(df, path=['Target', 'Gender_M', 'Customer_Age_Category', 'Marital_Status'])
 fig.update_layout(height=1000, width=1000)
 # Streamlit ile gösterme
 st.plotly_chart(fig)
 #bunun farklı versiyonlarını deneyelim
 
-#Gülen Yüzlerimiz
-from pywaffle import Waffle
-import matplotlib.pyplot as plt
-import streamlit as st
 
-count_1 = df['Target'].sum()
-count_0 = len(df) - count_1
-fig, ax = plt.subplots(figsize=(6, 4))
-# Olumlu sembol
-ax.text(0.5, 0.5, '✔', color='green', fontsize=100, ha='center', va='center')
-# Olumsuz sembol
-ax.text(0.5, 0.5, '✘', color='red', fontsize=100, ha='center', va='center')
-# Eksenleri gizle
-ax.axis('off')
-fig.show()
-st.pyplot(fig)
-
-count_1 = df['Target'].sum()
-count_0 = len(df) - count_1
-data = {'1 (Olumlu)': count_1, '0 (Olumsuz)': count_0}
-
-fig = plt.figure(
-    FigureClass=Waffle,
-    rows=5,
-    values=data,
-    colors=("#008080", "#FF5733"),
-    legend={'loc': 'upper left', 'bbox_to_anchor': (1, 1)},
-    icons=('check', 'times'),
-    icon_size=30,
-    icon_legend=True,
-    figsize=(10, 5)
-)
-fig.show()
-st.pyplot(fig)
 
 
 
