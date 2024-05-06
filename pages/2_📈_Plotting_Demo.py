@@ -470,10 +470,29 @@ st.plotly_chart(fig)
 # Gülen ve Somurtan Yüz Sembolleri
 
 
+# PNG İkonlarını Yükleyin
+smile_image = "Pages/0.png"
+frown_image = "Pages/1.png"
 
+# Gülen ve somurtan yüz sayılarını tanımlayın
+smile_count = 8500
+frown_count = 1627
+total_count = smile_count + frown_count
 
+# Toplam ikon sayısı
+total_icons = 100
+grid_size = 20
 
+# Oranlara göre ikon sayılarını hesaplayın
+smile_icons = round(smile_count / total_count * total_icons)
+frown_icons = total_icons - smile_icons
 
+# Gülen ve somurtan yüz ikonlarını liste olarak oluşturun
+icons = [smile_image] * smile_icons + [frown_image] * frown_icons
+
+# Streamlit ile ikonları gösterin
+for row in range(0, total_icons, grid_size):
+    st.image(icons[row:row + grid_size], width=20, caption=None)
 
 
 
