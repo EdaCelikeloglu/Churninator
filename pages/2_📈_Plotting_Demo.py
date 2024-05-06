@@ -459,7 +459,7 @@ st.plotly_chart(fig)
 
 #büyük Pasta
 #'Education_Level' 'Income_Category' bunları da koycam Nanlar sorun çıkardı
-fig = px.sunburst(df, path=['Target', 'Gender_M', 'Customer_Age_Category', 'Marital_Status'])
+fig = px.sunburst(df, path=['Target', 'Gender', 'Customer_Age_Category', 'Marital_Status'])
 fig.update_layout(height=1000, width=1000)
 # Streamlit ile gösterme
 st.plotly_chart(fig)
@@ -467,6 +467,7 @@ st.plotly_chart(fig)
 
 
 
+# Gülen ve Somurtan Yüz Sembolleri
 
 
 

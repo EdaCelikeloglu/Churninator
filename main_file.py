@@ -5,7 +5,7 @@ from scipy.stats import chi2_contingency
 from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier, VotingClassifier, AdaBoostClassifier
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import (accuracy_score, precision_score, recall_score, f1_score, roc_auc_score, confusion_matrix,
-                             classification_report, RocCurveDisplay)
+                             classification_report, RocCurveDisplay, roc_curve, auc, precision_recall_curve)
 from sklearn.model_selection import train_test_split, GridSearchCV, cross_validate, validation_curve, RandomizedSearchCV
 from sklearn.neighbors import KNeighborsClassifier, LocalOutlierFactor
 from sklearn.preprocessing import LabelEncoder, OrdinalEncoder, RobustScaler, StandardScaler
@@ -713,18 +713,92 @@ def hyperparameter_optimization(X_train, y_train, X_test, y_test, cv=3, scoring=
 
         best_models[name] = final_model
 
-    return best_models
+    return best_models, gs_best.best_params_
 
-hyperparameter_optimization(X_train, y_train, X_test, y_test)
+model, best_params = hyperparameter_optimization(X_train, y_train, X_test, y_test)
 
 # En iyisi CatBoost geldiği için bunu seçiyoruz.
+
+#train ve test  roc curve
+final_model = CatBoostClassifier(**best_params)
+final_model.fit(X_train, y_train)
+
+train_proba = final_model.predict_proba(X_train)[:, 1]
+test_proba = final_model.predict_proba(X_test)[:, 1]
+
+train_fpr, train_tpr, _ = roc_curve(y_train, train_proba)
+train_auc = auc(train_fpr, train_tpr)
+
+test_fpr, test_tpr, _ = roc_curve(y_test, test_proba)
+test_auc = auc(test_fpr, test_tpr)
+
+# Eğitim ve test ROC eğrilerini çiz
+plt.figure(figsize=(8, 6))
+plt.plot(train_fpr, train_tpr, color='blue', lw=2, label=f'Eğitim ROC (AUC = {train_auc:.2f})')
+plt.plot(test_fpr, test_tpr, color='green', lw=2, label=f'Test ROC (AUC = {test_auc:.2f})')
+plt.plot([0, 1], [0, 1], color='grey', lw=2, linestyle='--')
+plt.xlim([0.0, 1.0])
+plt.ylim([0.0, 1.05])
+plt.xlabel('Yanlış Pozitif Oranı (FPR)')
+plt.ylabel('Doğru Pozitif Oranı (TPR)')
+plt.title('Eğitim ve Test ROC Eğrileri')
+plt.legend(loc="lower right")
+plt.grid(True)
+plt.show()
+
+#presicion-recall eğrisi:
+final_model = CatBoostClassifier(**best_params)
+final_model.fit(X_train, y_train)
+
+test_proba = final_model.predict_proba(X_test)[:, 1]
+
+precision, recall, _ = precision_recall_curve(y_test, test_proba)
+
+# Precision-Recall eğrisini çiz
+plt.figure(figsize=(8, 6))
+plt.plot(recall, precision, color='blue', lw=2)
+plt.xlabel('Recall')
+plt.ylabel('Precision')
+plt.title('Precision-Recall Eğrisi')
+plt.grid(True)
+plt.show()
+
+# Detaylı sınıflandırma raporunu alın
+y_pred = final_model.predict(X_test)
+report = classification_report(y_test, y_pred, target_names=['Negatif', 'Pozitif'])
+print(report)
+
+
+import matplotlib.pyplot as plt
+from sklearn.metrics import precision_recall_curve, average_precision_score
+
+# Test seti için model tahmin olasılıklarını alın
+test_proba = final_model.predict_proba(X_test)[:, 1]
+
+# Precision ve recall eğrisini hesaplayın
+precision, recall, _ = precision_recall_curve(y_test, test_proba)
+
+# Ortalama precision değeri
+average_precision = average_precision_score(y_test, test_proba)
+
+# Precision-recall eğrisini çizin
+plt.figure(figsize=(8, 6))
+plt.plot(recall, precision, lw=2, label=f'Average Precision = {average_precision:.2f}')
+plt.xlabel('Recall (Duyarlılık)')
+plt.ylabel('Precision (Doğruluk)')
+plt.title('Precision-Recall Eğrisi')
+plt.legend(loc="lower left")
+plt.grid(True)
+plt.show()
+
+
+
+
 
 ################################
 # Analyzing Model Complexity with Learning Curves (BONUS)
 ################################
 
-XX = X.copy()
-yy = y.copy()
 
 
 def val_curve_params(model, X, y, param_name, param_range, scoring="roc_auc", cv=10):
@@ -753,17 +827,16 @@ catboost_params = {"learning_rate": [0.01, 0.05, 0.1, 0.5],
                    "iterations": [50, 100, 200, 300],
                    "subsample": [0.5, 0.75, 1.0]}
 catboost_params_optimized = {
-    "learning_rate": [0.05, 0.1],
-    "depth": [5, 7],
-    "iterations": [100, 200],
-    "subsample": [0.8, 1.0]
-}
+    "learning_rate": [0.04, 0.07],
+    "depth": [4, 7],
+    "iterations": [280, 400],
+    "subsample": [0.9, 2.0]}
 
 
 cb_model = CatBoostClassifier(random_state=17, verbose=False)
 
-for i in range(len(catboost_params_optimized)):
-    val_curve_params(cb_model, XX, yy, catboost_params_optimized[i][0], catboost_params_optimized[i][1])
+for param_name, param_range in catboost_params_optimized.items():
+    val_curve_params(cb_model, XX, yy, param_name, param_range)
 
 
 
@@ -815,5 +888,36 @@ for i in range(len(rf_val_params)):
 
 rf_val_params[0][1]
 
+
+################################
+# Feature Importance
+################################
+def plot_importance(model, features, num=len(X), save=False):
+    feature_imp = pd.DataFrame({'Value': model.feature_importances_, 'Feature': features.columns})
+    plt.figure(figsize=(10, 10))
+    sns.set(font_scale=1)
+    sns.barplot(x="Value", y="Feature", data=feature_imp.sort_values(by="Value",
+                                                                     ascending=False)[0:num])
+    plt.title('Features')
+    plt.tight_layout()
+    plt.show()
+    if save:
+        plt.savefig('importances.png')
+
+plot_importance(final_model, X)
+
+
+#top 15
+plot_importance(final_model, X, num=15)
+
+
+
+import shap
+# SHAP değerlerini hesaplamak için CatBoost açıklayıcısını kullanın
+explainer = shap.TreeExplainer(final_model)
+shap_values = explainer.shap_values(X)
+
+# SHAP özet grafiği
+shap.summary_plot(shap_values, X, plot_type="bar")
 
 
