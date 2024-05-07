@@ -116,6 +116,179 @@ def one_hot_encoder(dataframe, categorical_cols, drop_first=True):
 def combine_categories(df, cat_col1, cat_col2, new_col_name):
     df[new_col_name] = df[cat_col1].astype(str) + '_' + df[cat_col2].astype(str)
 
+########################################################################################################################
+########################################################################################################################
+########################################################################################################################
+# en base model
+df = pd.read_csv("BankChurners.csv")
+
+df.drop([
+    "Naive_Bayes_Classifier_Attrition_Flag_Card_Category_Contacts_Count_12_mon_Dependent_count_Education_Level_Months_Inactive_12_mon_1",
+    "Naive_Bayes_Classifier_Attrition_Flag_Card_Category_Contacts_Count_12_mon_Dependent_count_Education_Level_Months_Inactive_12_mon_2"],
+    inplace=True, axis=1)
+
+# Bağımlı değişkenimizin ismini target yapalım ve 1, 0 atayalım:
+df.rename(columns={"Attrition_Flag": "Target"}, inplace=True)
+df["Target"] = df.apply(lambda x: 0 if (x["Target"] == "Existing Customer") else 1, axis=1)
+
+# ID kolonunda duplicate bakıp, sonra bu değişkeni silme
+df["CLIENTNUM"].nunique()  # 10127 - yani duplicate yok id'de
+df.drop("CLIENTNUM", axis=1, inplace=True)
+
+cat_cols, num_cols, cat_but_car = grab_col_names(df)
+
+non_numeric_columns = [col for col in df.columns if df[col].dtype not in ['int64', 'float64']]
+
+df = one_hot_encoder(df, non_numeric_columns, drop_first=True)
+
+cat_cols, num_cols, cat_but_car = grab_col_names(df)
+
+rs = RobustScaler()
+df[num_cols] = rs.fit_transform(df[num_cols])
+
+y = df["Target"]
+X = df.drop(["Target"], axis=1)
+
+
+X_train, X_test, y_train, y_test = train_test_split(X,
+                                                    y,
+                                                    test_size=0.20, random_state=17)
+
+catboost_model = CatBoostClassifier(random_state=17, verbose=False).fit(X_train, y_train)
+
+y_pred = catboost_model.predict(X_test)
+
+print(classification_report(y_test, y_pred))
+
+
+
+
+
+# model (test-train bölmeden)
+catboost_model = CatBoostClassifier(random_state=17, verbose=False)
+cv_results_cboost = cross_validate(catboost_model, X, y, cv=5, scoring=["accuracy", "f1", "roc_auc", "recall"])
+
+cv_results_cboost['test_recall'].mean()
+# 0.6704766399244928
+
+model = catboost_model.fit(X, y)
+y_pred = model.predict(X)
+
+# Classification Report
+report = classification_report(y_test, y_pred)
+print(f"Classification Report for {name}:")
+print(report)
+
+
+# model - tüm modeller
+y_base = df["Target"]
+X_base = df.drop(["Target"], axis=1)
+
+X_train_base, X_test_base, y_train_base, y_test_base = train_test_split(X_base, y_base, test_size=0.2, random_state=42)
+
+def model_metrics(X_train, y_train, X_test, y_test):
+    print("Base Models....")
+    classifiers = [('LR', LogisticRegression()),
+                   ('KNN', KNeighborsClassifier()),
+                   ("SVC", SVC()),
+                   ("CART", DecisionTreeClassifier()),
+                   ("RF", RandomForestClassifier()),
+                   ('Adaboost', AdaBoostClassifier()),
+                   ('GBM', GradientBoostingClassifier()),
+                   ('XGBoost', XGBClassifier(use_label_encoder=False, eval_metric='logloss')),
+                   ('LightGBM', LGBMClassifier()),
+                   ('CatBoost', CatBoostClassifier(verbose=False))
+                   ]
+
+    for name, classifier in classifiers:
+        model = classifier.fit(X_train, y_train)
+        y_pred = model.predict(X_test)
+
+        # Classification Report
+        report = classification_report(y_test, y_pred)
+        print(f"Classification Report for {name}:")
+        print(report)
+
+model_metrics(X_train_base, y_train_base, X_test_base, y_test_base)
+# Base Models....
+# Classification Report for LR:
+#               precision    recall  f1-score   support
+#            0       0.92      0.97      0.94      1699
+#            1       0.76      0.54      0.63       327
+#     accuracy                           0.90      2026
+#    macro avg       0.84      0.75      0.79      2026
+# weighted avg       0.89      0.90      0.89      2026
+# Classification Report for KNN:
+#               precision    recall  f1-score   support
+#            0       0.91      0.97      0.94      1699
+#            1       0.78      0.49      0.60       327
+#     accuracy                           0.90      2026
+#    macro avg       0.84      0.73      0.77      2026
+# weighted avg       0.89      0.90      0.89      2026
+# Classification Report for SVC:
+#               precision    recall  f1-score   support
+#            0       0.93      0.98      0.96      1699
+#            1       0.87      0.62      0.72       327
+#     accuracy                           0.92      2026
+#    macro avg       0.90      0.80      0.84      2026
+# weighted avg       0.92      0.92      0.92      2026
+# Classification Report for CART:
+#               precision    recall  f1-score   support
+#            0       0.96      0.96      0.96      1699
+#            1       0.78      0.77      0.77       327
+#     accuracy                           0.93      2026
+#    macro avg       0.87      0.86      0.87      2026
+# weighted avg       0.93      0.93      0.93      2026
+# Classification Report for RF:
+#               precision    recall  f1-score   support
+#            0       0.96      0.99      0.97      1699
+#            1       0.92      0.76      0.83       327
+#     accuracy                           0.95      2026
+#    macro avg       0.94      0.87      0.90      2026
+# weighted avg       0.95      0.95      0.95      2026
+# Classification Report for Adaboost:
+#               precision    recall  f1-score   support
+#            0       0.96      0.98      0.97      1699
+#            1       0.88      0.81      0.84       327
+#     accuracy                           0.95      2026
+#    macro avg       0.92      0.89      0.91      2026
+# weighted avg       0.95      0.95      0.95      2026
+# Classification Report for GBM:
+#               precision    recall  f1-score   support
+#            0       0.97      0.99      0.98      1699
+#            1       0.94      0.85      0.89       327
+#     accuracy                           0.97      2026
+#    macro avg       0.95      0.92      0.94      2026
+# weighted avg       0.97      0.97      0.97      2026
+# Classification Report for XGBoost:
+#               precision    recall  f1-score   support
+#            0       0.97      0.98      0.98      1699
+#            1       0.90      0.86      0.88       327
+#     accuracy                           0.96      2026
+#    macro avg       0.94      0.92      0.93      2026
+# weighted avg       0.96      0.96      0.96      2026
+
+# Classification Report for LightGBM:
+#               precision    recall  f1-score   support
+#            0       0.98      0.98      0.98      1699
+#            1       0.90      0.89      0.89       327
+#     accuracy                           0.97      2026
+#    macro avg       0.94      0.94      0.94      2026
+# weighted avg       0.97      0.97      0.97      2026
+# Classification Report for CatBoost:
+#               precision    recall  f1-score   support
+#            0       0.98      0.99      0.98      1699
+#            1       0.92      0.89      0.91       327
+#     accuracy                           0.97      2026
+#    macro avg       0.95      0.94      0.95      2026
+# weighted avg       0.97      0.97      0.97      2026
+
+
+
+
+########################################################################################################################
+########################################################################################################################
+########################################################################################################################
 df = pd.read_csv("BankChurners.csv")
 
 df.drop([
@@ -569,13 +742,13 @@ df["cluster_no"] = df["cluster_no"] + 1
 
 df.groupby("cluster_no")["Segment"].value_counts()
 
+
+
+
 cat_cols, num_cols, cat_but_car = grab_col_names(df)
 
 df[num_cols].head()
 #33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333
-
-
-
 
 
 
@@ -631,11 +804,7 @@ undersample = TomekLinks()
 X, y = undersample.fit_resample(X, y)
 # summarize the new class distribution
 counter = Counter(y)
-print(counter) # {0: 8352, 1: 1627}
-
-
-
-
+print(counter) # {0: 8353, 1: 1627}
 
 # Model:
 def model_metrics(X_train, y_train, X_test, y_test):
@@ -662,22 +831,144 @@ def model_metrics(X_train, y_train, X_test, y_test):
 
 model_metrics(X_train, y_train, X_test, y_test)
 
+# Base Models....
+# Classification Report for LR:
+#               precision    recall  f1-score   support
+#            0       0.95      0.98      0.96      1699
+#            1       0.86      0.74      0.80       327
+#     accuracy                           0.94      2026
+#    macro avg       0.90      0.86      0.88      2026
+# weighted avg       0.94      0.94      0.94      2026
+# Classification Report for KNN:
+#               precision    recall  f1-score   support
+#            0       0.94      0.98      0.96      1699
+#            1       0.84      0.66      0.74       327
+#     accuracy                           0.92      2026
+#    macro avg       0.89      0.82      0.85      2026
+# weighted avg       0.92      0.92      0.92      2026
+# Classification Report for SVC:
+#               precision    recall  f1-score   support
+#            0       0.95      0.98      0.97      1699
+#            1       0.89      0.72      0.80       327
+#     accuracy                           0.94      2026
+#    macro avg       0.92      0.85      0.88      2026
+# weighted avg       0.94      0.94      0.94      2026
+# Classification Report for CART:
+#               precision    recall  f1-score   support
+#            0       0.96      0.96      0.96      1699
+#            1       0.81      0.80      0.81       327
+#     accuracy                           0.94      2026
+#    macro avg       0.89      0.88      0.89      2026
+# weighted avg       0.94      0.94      0.94      2026
+# Classification Report for RF:
+#               precision    recall  f1-score   support
+#            0       0.96      0.99      0.97      1699
+#            1       0.92      0.79      0.85       327
+#     accuracy                           0.96      2026
+#    macro avg       0.94      0.89      0.91      2026
+# weighted avg       0.95      0.96      0.95      2026
+# Classification Report for Adaboost:
+#               precision    recall  f1-score   support
+#            0       0.97      0.98      0.97      1699
+#            1       0.89      0.83      0.86       327
+#     accuracy                           0.96      2026
+#    macro avg       0.93      0.91      0.92      2026
+# weighted avg       0.96      0.96      0.96      2026
+# Classification Report for GBM:
+#               precision    recall  f1-score   support
+#            0       0.97      0.99      0.98      1699
+#            1       0.95      0.83      0.89       327
+#     accuracy                           0.97      2026
+#    macro avg       0.96      0.91      0.93      2026
+# weighted avg       0.97      0.97      0.97      2026
+# Classification Report for XGBoost:
+#               precision    recall  f1-score   support
+#            0       0.97      0.98      0.98      1699
+#            1       0.90      0.86      0.88       327
+#     accuracy                           0.96      2026
+#    macro avg       0.94      0.92      0.93      2026
+# weighted avg       0.96      0.96      0.96      2026
+# [LightGBM] [Info] Number of positive: 1300, number of negative: 6801
+# [LightGBM] [Info] Total Bins 2291
+# [LightGBM] [Info] Number of data points in the train set: 8101, number of used features: 94
+# [LightGBM] [Info] [binary:BoostFromScore]: pavg=0.160474 -> initscore=-1.654705
+# [LightGBM] [Info] Start training from score -1.654705
+# Classification Report for LightGBM:
+#               precision    recall  f1-score   support
+#            0       0.98      0.98      0.98      1699
+#            1       0.91      0.88      0.89       327
+#     accuracy                           0.97      2026
+#    macro avg       0.94      0.93      0.94      2026
+# weighted avg       0.97      0.97      0.97      2026
+# Classification Report for CatBoost:
+#               precision    recall  f1-score   support
+#            0       0.98      0.99      0.98      1699
+#            1       0.93      0.89      0.91       327
+#     accuracy                           0.97      2026
+#    macro avg       0.95      0.94      0.94      2026
+# weighted avg       0.97      0.97      0.97      2026
+
 # Recall 1 sonuçları en yüksek olanlar XGBOOST, LIGHTGBM ve GBM olduğu için hiperparametre optimizasyonuna onlarla devam ediyoruz:
 # Hiperparametre Optimizasyonu ve Model:
 
 
+logistic_params = {
+    'penalty': ['l1', 'l2'],
+    'C': [0.1, 1, 10],
+    'solver': ['liblinear', 'saga', 'lbfgs'],
+    'max_iter': [100, 200, 300],
+    'class_weight': [None, 'balanced']
+}
+
+# https://www.geeksforgeeks.org/svm-hyperparameter-tuning-using-gridsearchcv-ml/
+svc_params = {'C': [0.1, 1, 10, 100, 1000],
+              'gamma': [1, 0.1, 0.01, 0.001, 0.0001, "scale"],
+              'kernel': ['rbf']}
+
+adaboost_params = {
+    'n_estimators': [50, 100, 200],
+    'learning_rate': [0.01, 0.05, 0.1, 0.5, 1],
+    'algorithm': ['SAMME', 'SAMME.R']
+}
+
+knn_params = {"n_neighbors": range(2, 25),
+              'weights': ['uniform', 'distance'],
+              'algorithm': ['auto', 'ball_tree', 'kd_tree', 'brute'],
+              'p': [1, 2]
+}
+
+
+cart_params = {'max_depth': range(1, 20),
+               "min_samples_split": range(2, 30)}
+
+gbm_params = {"learning_rate": [0.01, 0.1],
+              "max_depth": [3, 8, 10],
+              "n_estimators": [100, 500, 1000],
+              "subsample": [1, 0.5, 0.7]}
+
+rf_params = {"max_depth": [5, 8, None],
+             "max_features": [3, 5, 7, "auto"],
+             "min_samples_split": [2, 5, 8, 15, 20],
+             "n_estimators": [100, 200, 500]}
+
 xgboost_params = {"learning_rate": [0.01, 0.05, 0.1, 0.5],
                   "max_depth": [3, 5, 7, 10],
-                  "n_estimators": [50, 100, 200, 300]}
+                  "n_estimators": [50, 100, 200, 300],
+                  "colsample_bytree": [0.7, 1]}
+
 
 lightgbm_params = {"learning_rate": [0.01, 0.05, 0.1, 0.5],
                    "n_estimators": [50, 100, 200, 300],
-                   "max_depth": [3, 5, 7, 10]}
+                   "max_depth": [-1, 3, 5, 7, 10],
+                   "colsample_bytree": [0.5, 0.7, 1]}
 
 catboost_params = {"learning_rate": [0.01, 0.05, 0.1, 0.5],
-                   "depth": [3, 5, 7, 10],
+                   "depth": [3, 5, 6, 7, 10],
                    "iterations": [50, 100, 200, 300],
-                   "subsample": [0.5, 0.75, 1.0]}
+                   "subsample": [0.5, 0.75, 1.0],
+                   "depth": [3, 6]}
+
+
 catboost_params_optimized = {
     "learning_rate": [0.05, 0.1],
     "depth": [5, 7],
@@ -685,10 +976,17 @@ catboost_params_optimized = {
     "subsample": [0.8, 1.0]
 }
 
-classifiers = ([#('XGBoost', XGBClassifier(use_label_encoder=False, eval_metric='logloss'), xgboost_params),
-                #('LightGBM', LGBMClassifier(force_col_wise=True), lightgbm_params),
-                ('CatBoost', CatBoostClassifier(verbose=False), catboost_params_optimized)])
-
+classifiers = [('Adaboost', AdaBoostClassifier(), adaboost_params),
+    ('KNN', KNeighborsClassifier(), knn_params),
+    ("CART", DecisionTreeClassifier(), cart_params),
+    ("RF", RandomForestClassifier(), rf_params),
+    ("LogisticRegression", LogisticRegression(), logistic_params),  # Lojistik Regresyon
+    ("SVC", SVC(), svc_params),  # Destek Vektör Makineleri
+    #("GBM", GradientBoostingClassifier(), gbm_params),  # Gradyan Arttırma Makineleri
+    #('XGBoost', XGBClassifier(use_label_encoder=False, eval_metric='logloss'), xgboost_params),
+    #('LightGBM', LGBMClassifier(force_col_wise=True), lightgbm_params),
+    #('CatBoost', CatBoostClassifier(verbose=False), catboost_params_optimized)
+]
 
 def hyperparameter_optimization(X_train, y_train, X_test, y_test, cv=3, scoring="roc_auc"):
     print("Hyperparameter Optimization....")
@@ -716,11 +1014,96 @@ def hyperparameter_optimization(X_train, y_train, X_test, y_test, cv=3, scoring=
     return best_models, gs_best.best_params_
 
 model, best_params = hyperparameter_optimization(X_train, y_train, X_test, y_test)
+# ########## Adaboost ##########
+# roc_auc (Before): 0.9835
+# roc_auc (After): 0.9865
+# Adaboost best params: {'algorithm': 'SAMME.R', 'learning_rate': 0.5, 'n_estimators': 200}
+# Adaboost classification report:
+#               precision    recall  f1-score   support
+#            0       0.97      0.98      0.98      1699
+#            1       0.91      0.83      0.87       327
+#     accuracy                           0.96      2026
+#    macro avg       0.94      0.90      0.92      2026
+# weighted avg       0.96      0.96      0.96      2026
 
-# En iyisi CatBoost geldiği için bunu seçiyoruz.
+
+# ########## KNN ##########
+# roc_auc (Before): 0.9336
+# roc_auc (After): 0.9572
+# KNN best params: {'algorithm': 'auto', 'n_neighbors': 14, 'p': 1, 'weights': 'distance'}
+# KNN classification report:
+#               precision    recall  f1-score   support
+#            0       0.93      0.98      0.95      1699
+#            1       0.84      0.61      0.70       327
+#     accuracy                           0.92      2026
+#    macro avg       0.89      0.79      0.83      2026
+# weighted avg       0.91      0.92      0.91      2026
+
+# ########## CART ##########
+# roc_auc (Before): 0.8763
+# roc_auc (After): 0.9102
+# CART best params: {'max_depth': 8, 'min_samples_split': 6}
+# CART classification report:
+#               precision    recall  f1-score   support
+#            0       0.96      0.97      0.97      1699
+#            1       0.84      0.80      0.82       327
+#     accuracy                           0.94      2026
+#    macro avg       0.90      0.88      0.89      2026
+# weighted avg       0.94      0.94      0.94      2026
+
+########## RF ##########
+# roc_auc (Before): 0.9863
+# roc_auc (After): 0.9876
+# RF best params: {'max_depth': None, 'max_features': 'auto', 'min_samples_split': 2, 'n_estimators': 500}
+# RF classification report:
+#               precision    recall  f1-score   support
+#            0       0.96      0.99      0.98      1699
+#            1       0.93      0.80      0.86       327
+#     accuracy                           0.96      2026
+#    macro avg       0.94      0.89      0.92      2026
+# weighted avg       0.96      0.96      0.96      2026
+
+# ########## LogisticRegression ##########
+# roc_auc (Before): 0.9712
+# roc_auc (After): 0.9714
+# LogisticRegression best params: {'C': 10, 'class_weight': None, 'max_iter': 100, 'penalty': 'l1', 'solver': 'saga'}
+# LogisticRegression classification report:
+#               precision    recall  f1-score   support
+#            0       0.95      0.97      0.96      1699
+#            1       0.85      0.75      0.80       327
+#     accuracy                           0.94      2026
+#    macro avg       0.90      0.86      0.88      2026
+# weighted avg       0.94      0.94      0.94      2026
+
+# ########## SVC ##########
+# roc_auc (Before): 0.9752
+# roc_auc (After): 0.9812
+# SVC best params: {'C': 10, 'gamma': 0.01, 'kernel': 'rbf'}
+# SVC classification report:
+#               precision    recall  f1-score   support
+#            0       0.96      0.98      0.97      1699
+#            1       0.87      0.81      0.84       327
+#     accuracy                           0.95      2026
+#    macro avg       0.92      0.89      0.91      2026
+# weighted avg       0.95      0.95      0.95      2026
+
+
+
+# #train ve test  roc curve
+# final_model = CatBoostClassifier(**best_params)
+# final_model.fit(X_train, y_train)
+#
+# train_proba = final_model.predict_proba(X_train)[:, 1]
+# test_proba = final_model.predict_proba(X_test)[:, 1]
+#
+# train_fpr, train_tpr, _ = roc_curve(y_train, train_proba)
+# train_auc = auc(train_fpr, train_tpr)
+#
+# test_fpr, test_tpr, _ = roc_curve(y_test, test_proba)
+# test_auc = auc(test_fpr, test_tpr)
 
 #train ve test  roc curve
-final_model = CatBoostClassifier(**best_params)
+final_model = SVC(**best_params, probability=True)
 final_model.fit(X_train, y_train)
 
 train_proba = final_model.predict_proba(X_train)[:, 1]
@@ -747,7 +1130,7 @@ plt.grid(True)
 plt.show()
 
 #presicion-recall eğrisi:
-final_model = CatBoostClassifier(**best_params)
+final_model = SVC(**best_params, probability=True)
 final_model.fit(X_train, y_train)
 
 test_proba = final_model.predict_proba(X_test)[:, 1]
@@ -779,6 +1162,7 @@ test_proba = final_model.predict_proba(X_test)[:, 1]
 precision, recall, _ = precision_recall_curve(y_test, test_proba)
 
 # Ortalama precision değeri
+from sklearn.metrics import average_precision_score
 average_precision = average_precision_score(y_test, test_proba)
 
 # Precision-recall eğrisini çizin
@@ -911,10 +1295,10 @@ plot_importance(final_model, X)
 plot_importance(final_model, X, num=15)
 
 
-
+# burada error veriyor category'ye çevirmek
 import shap
 # SHAP değerlerini hesaplamak için CatBoost açıklayıcısını kullanın
-explainer = shap.TreeExplainer(final_model)
+explainer = shap.TreeExplainer(final_model, cat_features="cluster_no")
 shap_values = explainer.shap_values(X)
 
 # SHAP özet grafiği
