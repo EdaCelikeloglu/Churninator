@@ -836,7 +836,7 @@ catboost_params_optimized = {
 cb_model = CatBoostClassifier(random_state=17, verbose=False)
 
 for param_name, param_range in catboost_params_optimized.items():
-    val_curve_params(cb_model, XX, yy, param_name, param_range)
+    val_curve_params(cb_model, X, y, param_name, param_range)
 
 
 

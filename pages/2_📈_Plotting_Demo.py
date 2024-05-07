@@ -276,6 +276,7 @@ df["High_net_worth_individual"] = ((df['Income_Category'] == '$120K +') & (df['T
 df["Rewards_maximizer"] = ((df['Total_Trans_Amt'] > 10000) & (df['Total_Revolving_Bal'] == 0)).astype(int) # For the Rewards_maximizer column, the threshold for Total_Trans_Amt is also set at $10000. Since rewards maximizers are individuals who strategically maximize rewards and benefits from credit card usage, it's reasonable to expect that they engage in higher levels of spending. Therefore, the threshold of $10000 for Total_Trans_Amt appears appropriate for identifying rewards maximizers, considering that it captures individuals with relatively high spending habits.
 df["May_marry"] = ((df["Age_&_Marital"] == "Young_Single") & (df['Dependent_count'] == 0)).astype(int)
 
+df['Total_Trans_Amt'].describe().T
 
 df["Product_by_Year"] = df["Total_Relationship_Count"] / (df["Months_on_book"] / 12)
 df['Year_on_book'] = df['Months_on_book'] // 12
@@ -468,31 +469,119 @@ st.plotly_chart(fig)
 
 
 # Gülen ve Somurtan Yüz Sembolleri
-
-
-# PNG İkonlarını Yükleyin
 smile_image = "Pages/0.png"
-frown_image = "Pages/1.png"
-
-# Gülen ve somurtan yüz sayılarını tanımlayın
+frown_image = "Pages/11.png"
 smile_count = 8500
 frown_count = 1627
 total_count = smile_count + frown_count
-
-# Toplam ikon sayısı
 total_icons = 100
 grid_size = 20
-
-# Oranlara göre ikon sayılarını hesaplayın
 smile_icons = round(smile_count / total_count * total_icons)
 frown_icons = total_icons - smile_icons
-
-# Gülen ve somurtan yüz ikonlarını liste olarak oluşturun
 icons = [smile_image] * smile_icons + [frown_image] * frown_icons
-
-# Streamlit ile ikonları gösterin
 for row in range(0, total_icons, grid_size):
     st.image(icons[row:row + grid_size], width=20, caption=None)
+
+
+
+
+
+
+#personlar için grafik?
+persona = ["May_marry", "Credit_builder_criteria","Family_criteria"]
+
+grid = [st.columns(3) for _ in range(3)]
+current_col = 0
+row = 0
+
+# Her bir feature için Target yüzdesini hesaplama ve grafik oluşturma
+for feature in persona:
+    if feature in df.columns:
+        # Feature 1 olan kayıtları filtrele
+        filtered_df = df[df[feature] == 1]
+
+        # Target 1 olanların yüzdesini hesapla
+        if not filtered_df.empty:
+            percentage = (filtered_df['Target'].sum() / filtered_df.shape[0]) * 100
+        else:
+            percentage = 0  # Eğer feature 1 hiç yoksa
+
+        # Yarım daire grafik oluştur
+        fig = go.Figure(go.Indicator(
+            mode="gauge+number",
+            value=percentage,
+            domain={'x': [0, 1], 'y': [0, 1]},
+            title={'text': f"{feature}", 'font': {'size': 16}},
+            gauge={
+                'axis': {'range': [None, 100], 'tickwidth': 1, 'tickcolor': "darkblue"},
+                'bar': {'color': "green"},
+                'bgcolor': "white",
+                'borderwidth': 2,
+                'bordercolor': "gray",
+                'steps': [
+                    {'range': [0, percentage], 'color': 'lavender'},
+                    {'range': [percentage, 100], 'color': 'mintcream'}
+                ],
+                'threshold': {
+                    'line': {'color': "red", 'width': 4},
+                    'thickness': 0.75,
+                    'value': percentage
+                }
+            }
+        ))
+
+        # Uygun sütunda Streamlit'te göster
+        with grid[row][current_col]:
+            st.plotly_chart(fig, use_container_width=True)
+
+        current_col += 1
+        if current_col > 2:
+            current_col = 0
+            row += 1
+
+
+
+#
+filtered_df = df[df['Target'] == 1]
+
+def get_label_rotation(angle, offset):
+    # Rotation must be specified in degrees :(
+    rotation = np.rad2deg(angle + offset)
+    if angle <= np.pi:
+        alignment = "right"
+        rotation = rotation + 180
+    else:
+        alignment = "left"
+    return rotation, alignment
+
+
+
+########
+# Kategorik değişkenler ve renkler
+categories = ['Gender', 'Contacts_Count_12_mon', 'Total_Relationship_Count']
+colors = ['tab:blue', 'tab:green', 'tab:red']
+
+fig, ax = plt.subplots(figsize=(10, 10), subplot_kw={'projection': 'polar'})
+
+# Toplam kategori sayısı
+total_categories = sum(df[cat].nunique() for cat in categories)
+angles = np.linspace(0, 2 * np.pi, total_categories, endpoint=False)
+
+start = 0
+for i, category in enumerate(categories):
+    # Value counts ve unique değerler
+    unique_vals = df[category].unique()
+    value_counts = df[category].value_counts().reindex(unique_vals, fill_value=0)
+    category_angles = angles[start:start + len(unique_vals)]
+
+    # Bar plot çizimi, burada bottom parametresi ile dairenin ortası boş bırakılıyor
+    ax.bar(category_angles, value_counts, width=2 * np.pi / total_categories, color=colors[i], alpha=0.6,
+           label=category, bottom=5)
+
+    start += len(unique_vals)
+
+ax.legend()
+st.pyplot(fig)
 
 
 
