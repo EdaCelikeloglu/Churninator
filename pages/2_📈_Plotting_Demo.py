@@ -452,6 +452,31 @@ fig = px.scatter(df, x="Credit_Limit", y="Total_Revolving_Bal", color="Income_Ca
 fig.update_layout(height=800, width=1200)
 st.plotly_chart(fig)
 
+#### DİLARA ŞEKER GRAFİĞİ DENEME BAŞLANGIÇ
+
+import seaborn as sns
+import matplotlib.pyplot as plt
+
+# Create the bins for Credit_Limit and Total_Revolving_Bal
+df["Credit_Limit_bin"] = pd.qcut(df["Credit_Limit"], 5, labels=[1, 2, 3, 4, 5])
+df["Total_Revolving_Bal_bin"] = pd.qcut(df["Total_Revolving_Bal"], 5, labels=[1, 2, 3, 4], duplicates="drop")
+
+# Group the data by bins and calculate the mean of Income_Category
+grouped_data = df.groupby(['Credit_Limit_bin', 'Total_Revolving_Bal_bin'])['Income_Category'].mean().unstack()
+
+# Plot the heatmap-like graph
+plt.figure(figsize=(10, 8))
+sns.heatmap(grouped_data, cmap='viridis', annot=True, fmt=".2f")
+
+# Ensure all spines are visible
+plt.gca().spines['top'].set_visible(True)
+plt.gca().spines['right'].set_visible(True)
+
+st.pyplot()
+
+
+#### DİLARA ŞEKER GRAFİĞİ DENEME BİTİŞ
+
 #büyük Pasta
 #'Education_Level' 'Income_Category' bunları da koycam Nanlar sorun çıkardı
 fig = px.sunburst(df, path=['Target', 'Gender', 'Customer_Age_Category', 'Marital_Status'])
@@ -612,10 +637,6 @@ st.pyplot(fig)
 
 
 
-
-
-
-
 # PCA ve waffle plot:
 #bunu yapabilmek için tüm veri scale edilmiş olmalı
 #o yüzden modele kadar herşeyi üste ekledim
@@ -670,24 +691,20 @@ import matplotlib.pyplot as plt
 import pandas as pd
 from math import pi
 
-df.head()
-
 # ------- PART 0: Reverse MinMax Scaler
-df0 = pd.read_csv("BankChurners.csv")
-df[['Total_Trans_Ct', 'Total_Trans_Amt']] = df0[['Total_Trans_Ct', 'Total_Trans_Amt']]
-df["Days_Inactive_Last_Year"] = df0["Months_Inactive_12_mon"] * 30
-df["Days_Inactive_Last_Year"].replace(0, 30, inplace=True)
-df["Days_Inactive_Last_Year"].replace(180, 150, inplace=True)
+df['FrequencyScore'] = df['FrequencyScore'].cat.codes
+df['MonetaryScore'] = df['MonetaryScore'].cat.codes
 
 # Set data
 df_radar = pd.DataFrame({
-    'group': ['Hibernating', 'At Risk', "Can't Lose", 'About to Sleep', 'Need Attention', 'Loyal Customers', 'Promising', 'New Customers', 'Potential Loyalists', 'Champions'],
-    'Total_Trans_Amt': [df[df["Segment"]=='Hibernating']["Total_Trans_Amt"].mean(), df[df["Segment"]=="At Risk"]["Total_Trans_Amt"].mean(), df[df["Segment"]=="Can't Lose"]["Total_Trans_Amt"].mean(), df[df["Segment"]=='About to Sleep']["Total_Trans_Amt"].mean(), df[df["Segment"]=='Need Attention']["Total_Trans_Amt"].mean(), df[df["Segment"]=='Loyal Customers']["Total_Trans_Amt"].mean(), df[df["Segment"]=='Promising']["Total_Trans_Amt"].mean(), df[df["Segment"]=='New Customers']["Total_Trans_Amt"].mean(), df[df["Segment"]=='Potential Loyalists']["Total_Trans_Amt"].mean(), df[df["Segment"]=="Champions"]["Total_Trans_Amt"].mean()],
-    'Total_Trans_Ct': [df[df["Segment"]=="Hibernating"]["Total_Trans_Ct"].mean(), df[df["Segment"]=="At Risk"]["Total_Trans_Ct"].mean(), df[df["Segment"]=="Can't Lose"]["Total_Trans_Ct"].mean(), df[df["Segment"]=='About to Sleep']["Total_Trans_Ct"].mean(), df[df["Segment"]=='Need Attention']["Total_Trans_Ct"].mean(), df[df["Segment"]=='Loyal Customers']["Total_Trans_Ct"].mean(), df[df["Segment"]=='Promising']["Total_Trans_Ct"].mean(), df[df["Segment"]=='New Customers']["Total_Trans_Ct"].mean(), df[df["Segment"]=='Potential Loyalists']["Total_Trans_Ct"].mean(), df[df["Segment"]=="Champions"]["Total_Trans_Ct"].mean()],
-    'Important_client_score': [df[df["Segment"]=="Hibernating"]["Important_client_score"].mean(), df[df["Segment"]=="At Risk"]["Important_client_score"].mean(), df[df["Segment"]=="Can't Lose"]["Important_client_score"].mean(), df[df["Segment"]=='About to Sleep']["Important_client_score"].mean(), df[df["Segment"]=='Need Attention']["Important_client_score"].mean(), df[df["Segment"]=='Loyal Customers']["Important_client_score"].mean(), df[df["Segment"]=='Promising']["Important_client_score"].mean(), df[df["Segment"]=='New Customers']["Important_client_score"].mean(), df[df["Segment"]=='Potential Loyalists']["Important_client_score"].mean(), df[df["Segment"]=="Champions"]["Important_client_score"].mean()],
-    'Days_Inactive_Last_Year': [df[df["Segment"]=="Hibernating"]["Days_Inactive_Last_Year"].mean(), df[df["Segment"]=="At Risk"]["Days_Inactive_Last_Year"].mean(), df[df["Segment"]=="Can't Lose"]["Days_Inactive_Last_Year"].mean(), df[df["Segment"]=='About to Sleep']["Days_Inactive_Last_Year"].mean(), df[df["Segment"]=='Need Attention']["Days_Inactive_Last_Year"].mean(), df[df["Segment"]=='Loyal Customers']["Days_Inactive_Last_Year"].mean(), df[df["Segment"]=='Promising']["Days_Inactive_Last_Year"].mean(), df[df["Segment"]=='New Customers']["Days_Inactive_Last_Year"].mean(), df[df["Segment"]=='Potential Loyalists']["Days_Inactive_Last_Year"].mean(), df[df["Segment"]=="Champions"]["Days_Inactive_Last_Year"].mean()],
-    'Total_Relationship_Count': [df[df["Segment"]=="Hibernating"]["Total_Relationship_Count"].mean(), df[df["Segment"]=="At Risk"]["Total_Relationship_Count"].mean(), df[df["Segment"]=="Can't Lose"]["Total_Relationship_Count"].mean(), df[df["Segment"]=='About to Sleep']["Total_Relationship_Count"].mean(), df[df["Segment"]=='Need Attention']["Total_Relationship_Count"].mean(), df[df["Segment"]=='Loyal Customers']["Total_Relationship_Count"].mean(), df[df["Segment"]=='Promising']["Total_Relationship_Count"].mean(), df[df["Segment"]=='New Customers']["Total_Relationship_Count"].mean(), df[df["Segment"]=='Potential Loyalists']["Total_Relationship_Count"].mean(), df[df["Segment"]=="Champions"]["Total_Relationship_Count"].mean()]
+    'group': ["Staying Customer", 'Churned Customer'],
+    'Relationship Count': [df[df["Target"] == 0]["Total_Relationship_Count"].mean(), df[df["Target"] == 1]["Total_Relationship_Count"].mean()],
+    'Recency Score': [df[df["Target"] == 0]["RecencyScore"].mean(), df[df["Target"] == 1]["RecencyScore"].mean()],
+    'Frequency Score': [df[df["Target"] == 0]["FrequencyScore"].mean(), df[df["Target"] == 1]["FrequencyScore"].mean()],
+    'Monetary Score': [df[df["Target"] == 0]["MonetaryScore"].mean(), df[df["Target"] == 1]["MonetaryScore"].mean()],
+    '6 - Contact Count': [6-(df[df["Target"] == 0]["Contacts_Count_12_mon"].mean()), 6-(df[df["Target"] == 1]["Contacts_Count_12_mon"].mean())],
 })
+# todo burada düz contact_count değil 6-contact count aldım. Bu şekilde, "Grafikte çıkan şekilde hacim büyüdükçe churn azalıyor" diyebiliriz. Ama bunu bir konuşalım.
 
 # ------- PART 1: Create background
 # number of variable
@@ -699,7 +716,8 @@ angles = [n / float(N) * 2 * pi for n in range(N)]
 angles += angles[:1]
 
 # Initialise the spider plot
-ax = plt.subplot(111, polar=True)
+# ax = plt.subplot(111, polar=True)
+fig, ax = plt.subplots(figsize=(8, 8), subplot_kw=dict(polar=True))
 
 # If you want the first axis to be on top:
 ax.set_theta_offset(pi / 2)
@@ -710,79 +728,27 @@ plt.xticks(angles[:-1], categories)
 
 # Draw ylabels
 ax.set_rlabel_position(0)
-plt.yticks([2, 4, 6, 8], ["2", "4", "6", "8"], color="grey", size=7)
-plt.ylim(0, 10)
+plt.yticks([1, 2, 3], ["1", "2", "3"], color="grey", size=7)
+plt.ylim(0, 4)
 
 # ------- PART 2: Add plots
-
 # Plot each individual = each line of the data
-# I don't make a loop, because plotting more than 3 groups makes the chart unreadable
 
 # Ind1
 values = df_radar.loc[0].drop('group').values.flatten().tolist()
 values += values[:1]
-ax.plot(angles, values, linewidth=1, linestyle='solid', label="Hibernating")
+ax.plot(angles, values, linewidth=1, linestyle='solid', label="Staying Customer")
 ax.fill(angles, values, 'b', alpha=0.1)
 
 # Ind2
 values = df_radar.loc[1].drop('group').values.flatten().tolist()
 values += values[:1]
-ax.plot(angles, values, linewidth=1, linestyle='solid', label="At Risk")
-ax.fill(angles, values, 'r', alpha=0.1)
+ax.plot(angles, values, linewidth=1, linestyle='solid', label='Churned Customer')
+ax.fill(angles, values, 'g', alpha=0.1)
 
-# Ind3
-values = df_radar.loc[2].drop('group').values.flatten().tolist()
-values += values[:1]
-ax.plot(angles, values, linewidth=1, linestyle='solid', label="Can't Lose")
-ax.fill(angles, values, '#ff7f0e', alpha=0.1)
-
-# Ind4
-values = df_radar.loc[3].drop('group').values.flatten().tolist()
-values += values[:1]
-ax.plot(angles, values, linewidth=1, linestyle='solid', label='About to Sleep')
-ax.fill(angles, values, '#2ca02c', alpha=0.1)
-
-# Ind5
-values = df_radar.loc[4].drop('group').values.flatten().tolist()
-values += values[:1]
-ax.plot(angles, values, linewidth=1, linestyle='solid', label='Need Attention')
-ax.fill(angles, values, '#9467bd', alpha=0.1)
-
-# Ind6
-values = df_radar.loc[5].drop('group').values.flatten().tolist()
-values += values[:1]
-ax.plot(angles, values, linewidth=1, linestyle='solid', label='Loyal Customers')
-ax.fill(angles, values, '#8c564b', alpha=0.1)
-
-# Ind7
-values = df_radar.loc[6].drop('group').values.flatten().tolist()
-values += values[:1]
-ax.plot(angles, values, linewidth=1, linestyle='solid', label="Promising")
-ax.fill(angles, values, '#e377c2', alpha=0.1)
-
-# Ind8
-values = df_radar.loc[7].drop('group').values.flatten().tolist()
-values += values[:1]
-ax.plot(angles, values, linewidth=1, linestyle='solid', label="New Customers")
-ax.fill(angles, values, '#7f7f7f', alpha=0.1)
-
-# Ind9
-values = df_radar.loc[8].drop('group').values.flatten().tolist()
-values += values[:1]
-ax.plot(angles, values, linewidth=1, linestyle='solid', label="Potential Loyalists")
-ax.fill(angles, values, '#bcbd22', alpha=0.1)
-
-# Ind10
-values = df_radar.loc[9].drop('group').values.flatten().tolist()
-values += values[:1]
-ax.plot(angles, values, linewidth=1, linestyle='solid', label="Champions")
-ax.fill(angles, values, '#17becf', alpha=0.1)
 
 # Add legend
 plt.legend(loc='upper right', bbox_to_anchor=(0.1, 0.1))
 
 # Show the graph
-plt.show()
-
-
-######## DİLARA RADAR BİTİŞ
+st.pyplot(fig)
