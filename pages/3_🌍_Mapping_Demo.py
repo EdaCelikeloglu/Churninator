@@ -435,21 +435,7 @@ for col in df.columns:
 df.head()
 cat_cols, num_cols, cat_but_car = grab_col_names(df)
 
-##### BAŞLANGIÇ Dilara recommendation yaratmaya çalışıyor
 
-#df.groupby("Segment")["Target"].mean()
-# About to Sleep        0.413
-# At Risk               0.049
-# Can't Loose           0.017
-# Champions             0.009
-# Hibernating           0.524
-# Loyal Customers       0.025
-# Need Attention        0.102
-# New Customers         0.128
-# Potential Loyalists   0.141
-# Promising             0.327
-
-##### BİTİŞ Dilara recommendation yaratmaya çalışıyor
 
 df = one_hot_encoder(df, ["Gender"], drop_first=True) # M'ler 1.
 df.rename(columns={"Gender_M": "Gender"}, inplace=True)
