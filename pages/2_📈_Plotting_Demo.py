@@ -9,7 +9,6 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 from sklearn.impute import KNNImputer
 from sklearn.neighbors import LocalOutlierFactor
-from pywaffle import Waffle
 from sklearn.preprocessing import OrdinalEncoder
 import warnings
 warnings.simplefilter(action="ignore")
@@ -216,7 +215,7 @@ elbow.show()
 elbow.elbow_value_
 
 
-# yeni optimum kümse sayısı ile model fit edilmiştir.
+# yeni optimum küme sayısı ile model fit edilmiştir.
 kmeans = KMeans(n_clusters = elbow.elbow_value_).fit(df[['Days_Inactive_Last_Year', 'Total_Trans_Ct', 'Total_Trans_Amt']])
 
 
@@ -276,6 +275,7 @@ df["High_net_worth_individual"] = ((df['Income_Category'] == '$120K +') & (df['T
 df["Rewards_maximizer"] = ((df['Total_Trans_Amt'] > 10000) & (df['Total_Revolving_Bal'] == 0)).astype(int) # For the Rewards_maximizer column, the threshold for Total_Trans_Amt is also set at $10000. Since rewards maximizers are individuals who strategically maximize rewards and benefits from credit card usage, it's reasonable to expect that they engage in higher levels of spending. Therefore, the threshold of $10000 for Total_Trans_Amt appears appropriate for identifying rewards maximizers, considering that it captures individuals with relatively high spending habits.
 df["May_marry"] = ((df["Age_&_Marital"] == "Young_Single") & (df['Dependent_count'] == 0)).astype(int)
 
+df['Total_Trans_Amt'].describe().T
 
 df["Product_by_Year"] = df["Total_Relationship_Count"] / (df["Months_on_book"] / 12)
 df['Year_on_book'] = df['Months_on_book'] // 12
@@ -468,31 +468,119 @@ st.plotly_chart(fig)
 
 
 # Gülen ve Somurtan Yüz Sembolleri
-
-
-# PNG İkonlarını Yükleyin
 smile_image = "Pages/0.png"
-frown_image = "Pages/1.png"
-
-# Gülen ve somurtan yüz sayılarını tanımlayın
+frown_image = "Pages/11.png"
 smile_count = 8500
 frown_count = 1627
 total_count = smile_count + frown_count
-
-# Toplam ikon sayısı
 total_icons = 100
 grid_size = 20
-
-# Oranlara göre ikon sayılarını hesaplayın
 smile_icons = round(smile_count / total_count * total_icons)
 frown_icons = total_icons - smile_icons
-
-# Gülen ve somurtan yüz ikonlarını liste olarak oluşturun
 icons = [smile_image] * smile_icons + [frown_image] * frown_icons
-
-# Streamlit ile ikonları gösterin
 for row in range(0, total_icons, grid_size):
     st.image(icons[row:row + grid_size], width=20, caption=None)
+
+
+
+
+
+
+#personlar için grafik?
+persona = ["May_marry", "Credit_builder_criteria","Family_criteria"]
+
+grid = [st.columns(3) for _ in range(3)]
+current_col = 0
+row = 0
+
+# Her bir feature için Target yüzdesini hesaplama ve grafik oluşturma
+for feature in persona:
+    if feature in df.columns:
+        # Feature 1 olan kayıtları filtrele
+        filtered_df = df[df[feature] == 1]
+
+        # Target 1 olanların yüzdesini hesapla
+        if not filtered_df.empty:
+            percentage = (filtered_df['Target'].sum() / filtered_df.shape[0]) * 100
+        else:
+            percentage = 0  # Eğer feature 1 hiç yoksa
+
+        # Yarım daire grafik oluştur
+        fig = go.Figure(go.Indicator(
+            mode="gauge+number",
+            value=percentage,
+            domain={'x': [0, 1], 'y': [0, 1]},
+            title={'text': f"{feature}", 'font': {'size': 16}},
+            gauge={
+                'axis': {'range': [None, 100], 'tickwidth': 1, 'tickcolor': "darkblue"},
+                'bar': {'color': "green"},
+                'bgcolor': "white",
+                'borderwidth': 2,
+                'bordercolor': "gray",
+                'steps': [
+                    {'range': [0, percentage], 'color': 'lavender'},
+                    {'range': [percentage, 100], 'color': 'mintcream'}
+                ],
+                'threshold': {
+                    'line': {'color': "red", 'width': 4},
+                    'thickness': 0.75,
+                    'value': percentage
+                }
+            }
+        ))
+
+        # Uygun sütunda Streamlit'te göster
+        with grid[row][current_col]:
+            st.plotly_chart(fig, use_container_width=True)
+
+        current_col += 1
+        if current_col > 2:
+            current_col = 0
+            row += 1
+
+
+
+#
+filtered_df = df[df['Target'] == 1]
+
+def get_label_rotation(angle, offset):
+    # Rotation must be specified in degrees :(
+    rotation = np.rad2deg(angle + offset)
+    if angle <= np.pi:
+        alignment = "right"
+        rotation = rotation + 180
+    else:
+        alignment = "left"
+    return rotation, alignment
+
+
+
+########
+# Kategorik değişkenler ve renkler
+categories = ['Gender', 'Contacts_Count_12_mon', 'Total_Relationship_Count']
+colors = ['tab:blue', 'tab:green', 'tab:red']
+
+fig, ax = plt.subplots(figsize=(10, 10), subplot_kw={'projection': 'polar'})
+
+# Toplam kategori sayısı
+total_categories = sum(df[cat].nunique() for cat in categories)
+angles = np.linspace(0, 2 * np.pi, total_categories, endpoint=False)
+
+start = 0
+for i, category in enumerate(categories):
+    # Value counts ve unique değerler
+    unique_vals = df[category].unique()
+    value_counts = df[category].value_counts().reindex(unique_vals, fill_value=0)
+    category_angles = angles[start:start + len(unique_vals)]
+
+    # Bar plot çizimi, burada bottom parametresi ile dairenin ortası boş bırakılıyor
+    ax.bar(category_angles, value_counts, width=2 * np.pi / total_categories, color=colors[i], alpha=0.6,
+           label=category, bottom=5)
+
+    start += len(unique_vals)
+
+ax.legend()
+st.pyplot(fig)
 
 
 
@@ -550,3 +638,128 @@ progress_bar.empty()
 # this button is not connected to any other logic, it just causes a plain
 # rerun.
 st.button("Re-run")
+
+
+######## DİLARA RADAR BAŞLANGIÇ
+
+# Libraries
+import matplotlib.pyplot as plt
+import pandas as pd
+from math import pi
+
+df.head()
+
+# ------- PART 0: Reverse MinMax Scaler
+df0 = pd.read_csv("BankChurners.csv")
+df[['Total_Trans_Ct', 'Total_Trans_Amt']] = df0[['Total_Trans_Ct', 'Total_Trans_Amt']]
+df["Days_Inactive_Last_Year"] = df0["Months_Inactive_12_mon"] * 30
+df["Days_Inactive_Last_Year"].replace(0, 30, inplace=True)
+df["Days_Inactive_Last_Year"].replace(180, 150, inplace=True)
+
+# Set data
+df_radar = pd.DataFrame({
+    'group': ['Hibernating', 'At Risk', "Can't Lose", 'About to Sleep', 'Need Attention', 'Loyal Customers', 'Promising', 'New Customers', 'Potential Loyalists', 'Champions'],
+    'Total_Trans_Amt': [df[df["Segment"]=='Hibernating']["Total_Trans_Amt"].mean(), df[df["Segment"]=="At Risk"]["Total_Trans_Amt"].mean(), df[df["Segment"]=="Can't Lose"]["Total_Trans_Amt"].mean(), df[df["Segment"]=='About to Sleep']["Total_Trans_Amt"].mean(), df[df["Segment"]=='Need Attention']["Total_Trans_Amt"].mean(), df[df["Segment"]=='Loyal Customers']["Total_Trans_Amt"].mean(), df[df["Segment"]=='Promising']["Total_Trans_Amt"].mean(), df[df["Segment"]=='New Customers']["Total_Trans_Amt"].mean(), df[df["Segment"]=='Potential Loyalists']["Total_Trans_Amt"].mean(), df[df["Segment"]=="Champions"]["Total_Trans_Amt"].mean()],
+    'Total_Trans_Ct': [df[df["Segment"]=="Hibernating"]["Total_Trans_Ct"].mean(), df[df["Segment"]=="At Risk"]["Total_Trans_Ct"].mean(), df[df["Segment"]=="Can't Lose"]["Total_Trans_Ct"].mean(), df[df["Segment"]=='About to Sleep']["Total_Trans_Ct"].mean(), df[df["Segment"]=='Need Attention']["Total_Trans_Ct"].mean(), df[df["Segment"]=='Loyal Customers']["Total_Trans_Ct"].mean(), df[df["Segment"]=='Promising']["Total_Trans_Ct"].mean(), df[df["Segment"]=='New Customers']["Total_Trans_Ct"].mean(), df[df["Segment"]=='Potential Loyalists']["Total_Trans_Ct"].mean(), df[df["Segment"]=="Champions"]["Total_Trans_Ct"].mean()],
+    'Important_client_score': [df[df["Segment"]=="Hibernating"]["Important_client_score"].mean(), df[df["Segment"]=="At Risk"]["Important_client_score"].mean(), df[df["Segment"]=="Can't Lose"]["Important_client_score"].mean(), df[df["Segment"]=='About to Sleep']["Important_client_score"].mean(), df[df["Segment"]=='Need Attention']["Important_client_score"].mean(), df[df["Segment"]=='Loyal Customers']["Important_client_score"].mean(), df[df["Segment"]=='Promising']["Important_client_score"].mean(), df[df["Segment"]=='New Customers']["Important_client_score"].mean(), df[df["Segment"]=='Potential Loyalists']["Important_client_score"].mean(), df[df["Segment"]=="Champions"]["Important_client_score"].mean()],
+    'Days_Inactive_Last_Year': [df[df["Segment"]=="Hibernating"]["Days_Inactive_Last_Year"].mean(), df[df["Segment"]=="At Risk"]["Days_Inactive_Last_Year"].mean(), df[df["Segment"]=="Can't Lose"]["Days_Inactive_Last_Year"].mean(), df[df["Segment"]=='About to Sleep']["Days_Inactive_Last_Year"].mean(), df[df["Segment"]=='Need Attention']["Days_Inactive_Last_Year"].mean(), df[df["Segment"]=='Loyal Customers']["Days_Inactive_Last_Year"].mean(), df[df["Segment"]=='Promising']["Days_Inactive_Last_Year"].mean(), df[df["Segment"]=='New Customers']["Days_Inactive_Last_Year"].mean(), df[df["Segment"]=='Potential Loyalists']["Days_Inactive_Last_Year"].mean(), df[df["Segment"]=="Champions"]["Days_Inactive_Last_Year"].mean()],
+    'Total_Relationship_Count': [df[df["Segment"]=="Hibernating"]["Total_Relationship_Count"].mean(), df[df["Segment"]=="At Risk"]["Total_Relationship_Count"].mean(), df[df["Segment"]=="Can't Lose"]["Total_Relationship_Count"].mean(), df[df["Segment"]=='About to Sleep']["Total_Relationship_Count"].mean(), df[df["Segment"]=='Need Attention']["Total_Relationship_Count"].mean(), df[df["Segment"]=='Loyal Customers']["Total_Relationship_Count"].mean(), df[df["Segment"]=='Promising']["Total_Relationship_Count"].mean(), df[df["Segment"]=='New Customers']["Total_Relationship_Count"].mean(), df[df["Segment"]=='Potential Loyalists']["Total_Relationship_Count"].mean(), df[df["Segment"]=="Champions"]["Total_Relationship_Count"].mean()]
+})
+
+# ------- PART 1: Create background
+# number of variable
+categories = list(df_radar)[1:]
+N = len(categories)
+
+# What will be the angle of each axis in the plot? (we divide the plot / number of variable)
+angles = [n / float(N) * 2 * pi for n in range(N)]
+angles += angles[:1]
+
+# Initialise the spider plot
+ax = plt.subplot(111, polar=True)
+
+# If you want the first axis to be on top:
+ax.set_theta_offset(pi / 2)
+ax.set_theta_direction(-1)
+
+# Draw one axe per variable + add labels
+plt.xticks(angles[:-1], categories)
+
+# Draw ylabels
+ax.set_rlabel_position(0)
+plt.yticks([2, 4, 6, 8], ["2", "4", "6", "8"], color="grey", size=7)
+plt.ylim(0, 10)
+
+# ------- PART 2: Add plots
+
+# Plot each individual = each line of the data
+# I don't make a loop, because plotting more than 3 groups makes the chart unreadable
+
+# Ind1
+values = df_radar.loc[0].drop('group').values.flatten().tolist()
+values += values[:1]
+ax.plot(angles, values, linewidth=1, linestyle='solid', label="Hibernating")
+ax.fill(angles, values, 'b', alpha=0.1)
+
+# Ind2
+values = df_radar.loc[1].drop('group').values.flatten().tolist()
+values += values[:1]
+ax.plot(angles, values, linewidth=1, linestyle='solid', label="At Risk")
+ax.fill(angles, values, 'r', alpha=0.1)
+
+# Ind3
+values = df_radar.loc[2].drop('group').values.flatten().tolist()
+values += values[:1]
+ax.plot(angles, values, linewidth=1, linestyle='solid', label="Can't Lose")
+ax.fill(angles, values, '#ff7f0e', alpha=0.1)
+
+# Ind4
+values = df_radar.loc[3].drop('group').values.flatten().tolist()
+values += values[:1]
+ax.plot(angles, values, linewidth=1, linestyle='solid', label='About to Sleep')
+ax.fill(angles, values, '#2ca02c', alpha=0.1)
+
+# Ind5
+values = df_radar.loc[4].drop('group').values.flatten().tolist()
+values += values[:1]
+ax.plot(angles, values, linewidth=1, linestyle='solid', label='Need Attention')
+ax.fill(angles, values, '#9467bd', alpha=0.1)
+
+# Ind6
+values = df_radar.loc[5].drop('group').values.flatten().tolist()
+values += values[:1]
+ax.plot(angles, values, linewidth=1, linestyle='solid', label='Loyal Customers')
+ax.fill(angles, values, '#8c564b', alpha=0.1)
+
+# Ind7
+values = df_radar.loc[6].drop('group').values.flatten().tolist()
+values += values[:1]
+ax.plot(angles, values, linewidth=1, linestyle='solid', label="Promising")
+ax.fill(angles, values, '#e377c2', alpha=0.1)
+
+# Ind8
+values = df_radar.loc[7].drop('group').values.flatten().tolist()
+values += values[:1]
+ax.plot(angles, values, linewidth=1, linestyle='solid', label="New Customers")
+ax.fill(angles, values, '#7f7f7f', alpha=0.1)
+
+# Ind9
+values = df_radar.loc[8].drop('group').values.flatten().tolist()
+values += values[:1]
+ax.plot(angles, values, linewidth=1, linestyle='solid', label="Potential Loyalists")
+ax.fill(angles, values, '#bcbd22', alpha=0.1)
+
+# Ind10
+values = df_radar.loc[9].drop('group').values.flatten().tolist()
+values += values[:1]
+ax.plot(angles, values, linewidth=1, linestyle='solid', label="Champions")
+ax.fill(angles, values, '#17becf', alpha=0.1)
+
+# Add legend
+plt.legend(loc='upper right', bbox_to_anchor=(0.1, 0.1))
+
+# Show the graph
+plt.show()
+
+
+######## DİLARA RADAR BİTİŞ

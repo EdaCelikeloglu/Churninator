@@ -2,6 +2,7 @@ from catboost import CatBoostClassifier
 from imblearn.under_sampling import TomekLinks
 from lightgbm import LGBMClassifier
 from scipy.stats import chi2_contingency
+from sklearn.cluster import KMeans
 from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier, VotingClassifier, AdaBoostClassifier
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import (accuracy_score, precision_score, recall_score, f1_score, roc_auc_score, confusion_matrix,
@@ -513,8 +514,10 @@ df["May_marry"] = ((df["Age_&_Marital"] == "Young_Single") & (df['Dependent_coun
 (df.loc[df['Total_Trans_Amt'] > 10000]).groupby("Income_Category")["Customer_Age"].mean()
 (df.loc[df['Total_Trans_Amt'] > 10000]).groupby("Income_Category").count()
 df['Total_Trans_Amt'].describe().T
+df["Rewards_maximizer"].describe().T
+df.groupby("Rewards_maximizer")["Target"].mean()
+df[df["Rewards_maximizer"]==1]["Target"].mean()
 
-df.head()
 
 # TODO öneri: Total_dependent_count fazla olanlara ek kart öner.
 
@@ -1220,7 +1223,7 @@ catboost_params_optimized = {
 cb_model = CatBoostClassifier(random_state=17, verbose=False)
 
 for param_name, param_range in catboost_params_optimized.items():
-    val_curve_params(cb_model, XX, yy, param_name, param_range)
+    val_curve_params(cb_model, X, y, param_name, param_range)
 
 
 
@@ -1257,7 +1260,6 @@ def val_curve_params(model, X, y, param_name, param_range, scoring="roc_auc", cv
     plt.tight_layout()
     plt.legend(loc='best')
     plt.show(block=True)
-
 
 rf_val_params = [["max_depth", [5, 8, 15, 20, 30, None]],
                  ["max_features", [3, 5, 7, "auto"]],
