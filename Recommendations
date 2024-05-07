@@ -85,6 +85,26 @@ Potential Loyalists with Low Income and High Contact Count
 # At Risk (Churn Risk: 4.9%):
 # Action: Proactively reach out to customers in this segment to address any concerns or issues they may have.
 # Example: Assign dedicated account managers to provide personalized assistance and resolve any queries or complaints promptly.
+
+* Total Transaction Amount Change Q4 over Q1:
+    * Recommendation: Provide Seasonal Spending Insights.
+        * Offer: Send personalized insights or alerts to customers regarding their spending patterns and changes from quarter to quarter.
+        * Objective: Help customers understand their financial behavior and identify opportunities for optimizing their spending habits, thus enhancing loyalty.
+* Total Revolving Balance:
+    * Recommendation: Offer Debt Consolidation Solutions.
+        * Offer: Introduce debt consolidation loans or balance transfer options with competitive interest rates and favorable terms.
+        * Objective: Assist customers in managing and reducing their revolving balances, thereby improving their financial health and loyalty to the bank.
+
+Total Transaction Count and Total Transaction Amount:
+Recommendation: Promote Increased Usage Rewards Program.
+Offer: Incentivize customers with rewards points, cashback, or discounts for reaching certain transaction count and amount thresholds each month.
+Objective: Encourage active card usage and increase customer engagement, leading to higher retention rates.
+
+Number of Banking Products Owned per Year and Monetary Score:
+Recommendation: Offer Cross-Selling Opportunities.
+Offer: Present targeted recommendations for additional banking products or services based on customers' current holdings and monetary scores.
+Objective: Encourage customers to diversify their banking relationships and increase their lifetime value to the bank.
+
 ##### çalışması devam edenler: bitiş
 
 
@@ -151,14 +171,17 @@ Potential Loyalists with Low Income and High Contact Count
 
 
 * Q4’te Q1’e kıyasla daha fazla harcama yapmaları
-￼
+* Seasonal Spending Insights
+	Total Transaction Amount Change Q4 over Q1:
+    * Offer: Send personalized insights or alerts to customers regarding their spending patterns and changes from quarter to quarter.
+    * Objective: Help customers understand their financial behavior and identify opportunities for optimizing their spending habits, thus enhancing loyalty.
+
+
 
 
 
 
 ####
-
-
 
 4. df.groupby("Income_Category")["Total_Revolving_Bal"].mean()
 df.groupby("Income_Category")["Total_Trans_Amt"].mean()
