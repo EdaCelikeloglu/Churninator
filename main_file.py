@@ -30,12 +30,16 @@ from sklearn.metrics import classification_report
 from sklearn.impute import KNNImputer
 from statsmodels.stats.outliers_influence import variance_inflation_factor
 
+
+
+
 warnings.simplefilter(action="ignore")
 
 pd.set_option('display.max_columns', None)
 pd.set_option('display.width', 170)
 pd.set_option('display.max_rows', None)
 pd.set_option('display.float_format', lambda x: '%.3f' % x)
+
 
 # Fonksiyonlarımız:
 def grab_col_names(dataframe, cat_th=9, car_th=20):
@@ -177,7 +181,7 @@ y_pred = model.predict(X)
 
 # Classification Report
 report = classification_report(y_test, y_pred)
-print(f"Classification Report for {name}:")
+
 print(report)
 
 

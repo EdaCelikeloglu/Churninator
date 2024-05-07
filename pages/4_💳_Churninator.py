@@ -11,6 +11,7 @@ import matplotlib.pyplot as plt
 from sklearn.impute import KNNImputer
 from sklearn.neighbors import LocalOutlierFactor
 from sklearn.preprocessing import OrdinalEncoder
+from main import process_data
 import warnings
 warnings.simplefilter(action="ignore")
 
