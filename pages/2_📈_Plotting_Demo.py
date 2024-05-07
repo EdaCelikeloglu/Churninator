@@ -275,6 +275,7 @@ df["High_net_worth_individual"] = ((df['Income_Category'] == '$120K +') & (df['T
 df["Rewards_maximizer"] = ((df['Total_Trans_Amt'] > 10000) & (df['Total_Revolving_Bal'] == 0)).astype(int) # For the Rewards_maximizer column, the threshold for Total_Trans_Amt is also set at $10000. Since rewards maximizers are individuals who strategically maximize rewards and benefits from credit card usage, it's reasonable to expect that they engage in higher levels of spending. Therefore, the threshold of $10000 for Total_Trans_Amt appears appropriate for identifying rewards maximizers, considering that it captures individuals with relatively high spending habits.
 df["May_marry"] = ((df["Age_&_Marital"] == "Young_Single") & (df['Dependent_count'] == 0)).astype(int)
 
+
 df["Product_by_Year"] = df["Total_Relationship_Count"] / (df["Months_on_book"] / 12)
 df['Year_on_book'] = df['Months_on_book'] // 12
 
@@ -564,45 +565,69 @@ for feature in persona:
 
 
 #
-filtered_df = df[df['Target'] == 1]
-
-def get_label_rotation(angle, offset):
-    # Rotation must be specified in degrees :(
-    rotation = np.rad2deg(angle + offset)
-    if angle <= np.pi:
-        alignment = "right"
-        rotation = rotation + 180
-    else:
-        alignment = "left"
-    return rotation, alignment
 
 
 
-########
+
+#½½½½½½½½½½½½½½½½½½½½½½½½½½½½½½½½½½½½½½½½½½½½½½½½½½½½½½½½½½½½½½½½½½½½½½½½½
+# Filtered DataFrames
+filtered_df1 = df[df['Target'] == 1]
+filtered_df0 = df[df['Target'] == 0]
+
 # Kategorik değişkenler ve renkler
-categories = ['Gender', 'Contacts_Count_12_mon', 'Total_Relationship_Count']
-colors = ['tab:blue', 'tab:green', 'tab:red']
+categories = ['Gender', 'Contacts_Count_12_mon', 'Total_Relationship_Count', 'Segment', 'Marital_Status']
+colors = ['tab:blue', 'tab:green', 'tab:red', 'tab:pink', 'tab:orange']
 
-fig, ax = plt.subplots(figsize=(10, 10), subplot_kw={'projection': 'polar'})
+# Figür oluştur, 2 subplot ile (1 row, 2 columns)
+fig, axes = plt.subplots(1, 2, figsize=(10, 5), dpi=1000, subplot_kw={'projection': 'polar'})
 
-# Toplam kategori sayısı
-total_categories = sum(df[cat].nunique() for cat in categories)
+# Target 1 için
+ax = axes[0]
+total_categories = sum(filtered_df1[cat].nunique() for cat in categories)
 angles = np.linspace(0, 2 * np.pi, total_categories, endpoint=False)
-
+bar_width = (2 * np.pi / total_categories) * 0.8  # %80 genişlik, %20 boşluk
 start = 0
 for i, category in enumerate(categories):
-    # Value counts ve unique değerler
     unique_vals = df[category].unique()
-    value_counts = df[category].value_counts().reindex(unique_vals, fill_value=0)
+    value_counts = filtered_df1[category].value_counts().reindex(unique_vals, fill_value=0)
     category_angles = angles[start:start + len(unique_vals)]
-
-    # Bar plot çizimi, burada bottom parametresi ile dairenin ortası boş bırakılıyor
-    ax.bar(category_angles, value_counts, width=2 * np.pi / total_categories, color=colors[i], alpha=0.6,
-           label=category, bottom=5)
-
+    bars = ax.bar(category_angles, value_counts, width=bar_width, color=colors[i], alpha=0.6, label=category, bottom=600)
+    # Kategori değerlerinin isimlerini her barın üstüne yazma
+    for bar, label in zip(bars, value_counts.index):
+        angle = bar.get_x() + bar_width / 2  # Metni barın merkezine yerleştir
+        height = 800
+        ax.text(angle, height, str(label), color='black', ha='left', va='center', rotation=np.degrees(angle),
+                rotation_mode='anchor', fontsize=7)
     start += len(unique_vals)
+    ax.text(0, 0, "1", color='black', ha='center', va='center', fontsize=12)
+fig.legend()
+# Target 0 için
+ax = axes[1]
+total_categories = sum(filtered_df0[cat].nunique() for cat in categories)
+angles = np.linspace(0, 2 * np.pi, total_categories, endpoint=False)
+start = 0
+for i, category in enumerate(categories):
+    unique_vals = df[category].unique()
+    value_counts = filtered_df0[category].value_counts().reindex(unique_vals, fill_value=0)
+    category_angles = angles[start:start + len(unique_vals)]
+    bars = ax.bar(category_angles, value_counts, width=bar_width, color=colors[i], alpha=0.6, label=category, bottom=3000)
+    # Kategori değerlerinin isimlerini her barın üstüne yazma
+    for bar, label in zip(bars, value_counts.index):
+        angle = bar.get_x() + bar_width / 2  # Metni barın merkezine yerleştir
+        height = 3800
+        ax.text(angle, height, str(label), color='black', ha='left', va='center', rotation=np.degrees(angle),
+                rotation_mode='anchor', fontsize=7)
+    start += len(unique_vals)
+    ax.text(0, 0, "0", color='black', ha='center', va='center', fontsize=12)
 
-ax.legend()
+# Ortak ayarlar
+for ax in axes:
+    ax.grid(False)
+    ax.set_xticklabels([])
+    ax.set_yticklabels([])
+    ax.spines['polar'].set_visible(False)
+
+# Streamlit'te göster
 st.pyplot(fig)
 
 
