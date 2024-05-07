@@ -407,6 +407,8 @@ fig = px.bar(mean_scores_by_target, x="Target", y="Important_client_score",
 fig.update_layout(height=400, width=400)
 st.plotly_chart(fig)
 
+"""
+# Dilara says: bunu Radar grafiğinde verdiğimiz için tekrar ayrıca vermeyelim diye düşünüyorum.
 # müşteri ile iletişim sayısı ve target:
 mean_churn_by_contact = df.groupby("Contacts_Count_12_mon")["Target"].mean().reset_index()
 mean_churn_by_contact = mean_churn_by_contact.rename(columns={"Target": "Churn_Rate"})
@@ -415,7 +417,7 @@ fig = px.bar(mean_churn_by_contact, x="Contacts_Count_12_mon", y="Churn_Rate",
              title="İletişim Sayısına Göre Ortalama Churn Oranı")
 fig.update_layout(height=400, width=400)
 st.plotly_chart(fig)
-
+"""
 
 
 #Age_&_Marital   Gender_&_Age        Card_&_Age değişkenlerini target ile baktım:
@@ -437,8 +439,9 @@ st.plotly_chart(fig_age_marital)
 st.plotly_chart(fig_gender_age)
 st.plotly_chart(fig_card_age)
 
-
+"""
 # burada Dec_ct_dec_amt kategorisi nedir? Çok fazla yoğunluk var orda
+# Dilara says: burası sanki çok bir şey söylemiyor ya
 #  Ct_vs_Amt ile Target:
 fig = px.histogram(df, x="Ct_vs_Amt", color="Target", barmode="group",
                    title="Ct_vs_Amt Değişkeninin Target İle İlişkisi",
@@ -447,7 +450,7 @@ fig = px.histogram(df, x="Ct_vs_Amt", color="Target", barmode="group",
 
 fig.update_layout(bargap=0.1)
 st.plotly_chart(fig)
-
+"""
 # bunun notunu almışım birlikte yorumlayalım.:
 fig = px.scatter(df, x="Credit_Limit", y="Total_Revolving_Bal", color="Income_Category",
                  title="Kredi Limiti ve Devir Bakiyesi İlişkisi",
@@ -456,30 +459,51 @@ fig = px.scatter(df, x="Credit_Limit", y="Total_Revolving_Bal", color="Income_Ca
 fig.update_layout(height=800, width=1200)
 st.plotly_chart(fig)
 
+
 #### DİLARA ŞEKER GRAFİĞİ DENEME BAŞLANGIÇ
 
 import seaborn as sns
 import matplotlib.pyplot as plt
 
 # Create the bins for Credit_Limit and Total_Revolving_Bal
-df["Credit_Limit_bin"] = pd.qcut(df["Credit_Limit"], 5, labels=[1, 2, 3, 4, 5])
-df["Total_Revolving_Bal_bin"] = pd.qcut(df["Total_Revolving_Bal"], 5, labels=[1, 2, 3, 4], duplicates="drop")
+df["Credit_Limit_bin"] = pd.qcut(df["Credit_Limit"], 7, labels=[1, 2, 3, 4, 5, 6, 7])
+df["Total_Revolving_Bal_bin"] = pd.qcut(df["Total_Revolving_Bal"], 6, labels=[1, 2, 3, 4, 5], duplicates="drop")
 
 # Group the data by bins and calculate the mean of Income_Category
-grouped_data = df.groupby(['Credit_Limit_bin', 'Total_Revolving_Bal_bin'])['Income_Category'].mean().unstack()
+grouped_data = df.groupby(['Total_Revolving_Bal_bin', 'Credit_Limit_bin'])['Income_Category'].mean().unstack()
 
 # Plot the heatmap-like graph
-plt.figure(figsize=(10, 8))
-sns.heatmap(grouped_data, cmap='viridis', annot=True, fmt=".2f")
+fig, ax = plt.subplots(figsize=(10, 8))
+heatmap = sns.heatmap(grouped_data, cmap='plasma', annot=True, fmt=".2f", ax=ax, vmin=0, vmax=4)
+ax.invert_yaxis()
 
 # Ensure all spines are visible
-plt.gca().spines['top'].set_visible(True)
-plt.gca().spines['right'].set_visible(True)
+ax.spines['top'].set_visible(True)
+ax.spines['right'].set_visible(True)
 
-st.pyplot()
+# Customize the legend labels
+colorbar = heatmap.collections[0].colorbar
+colorbar.set_ticks(range(5))
+colorbar.set_ticklabels(['0: Less than $40K', '1: $40K - $60K', '2: $60K - $80K', '3: $80K - $120K', '4: $120K +'])
+
+for i in range(len(grouped_data)):
+    for j in range(len(grouped_data.columns)):
+        value = grouped_data.iloc[i, j]
+        ax.text(j + 0.5, i + 0.5, f'{value:.2f}', ha='center', va='center', color='white')
+
+# Customize x-axis and y-axis labels and ticks
+ax.set_xticks([0, 1, 2, 3, 4, 5, 6, 7])  # Setting the positions of the ticks
+ax.set_xticklabels(['0', '5k', '10k', '15k', '20k', '25k', '30k', '35k'])
+ax.set_xlabel('Credit Limit (TRY)')
+
+ax.set_yticks([0, 1, 2, 3, 4, 5])  # Setting the positions of the ticks
+ax.set_yticklabels(['0', '500', '1000', '1500', '2000', '2500'])
+ax.set_ylabel('Total Revolving Balance (TRY)')
+
+st.pyplot(fig)
 
 
-#### DİLARA ŞEKER GRAFİĞİ DENEME BİTİŞ
+
 
 #büyük Pasta
 #'Education_Level' 'Income_Category' bunları da koycam Nanlar sorun çıkardı
