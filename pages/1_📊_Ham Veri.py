@@ -5,7 +5,6 @@ from urllib.error import URLError
 import plotly as px
 import plotly.express as px
 import plotly.graph_objects as go
-from pywaffle import Waffle
 from catboost import CatBoostClassifier
 from lightgbm import LGBMClassifier
 from scipy.stats import chi2_contingency
@@ -43,10 +42,10 @@ pd.set_option('display.max_rows', None)
 pd.set_option('display.float_format', lambda x: '%.3f' % x)
 
 
-st.set_page_config(page_title="DataFrame Demo", page_icon="📊", layout="wide")
+st.set_page_config(page_title="Ham Veri", page_icon="📊", layout="wide")
 
-st.markdown("# DataFrame Demo")
-st.sidebar.header("DataFrame Demo")
+st.markdown("# Ham Veri")
+st.sidebar.header("Ham Veri")
 st.write(
     """Burada Dataframemimizin bir tanıtımı yer alacak."""
 )
@@ -63,7 +62,32 @@ df.drop([
 
 st.write(df.head())
 
-
+st.write(
+    """
+    CLIENTNUM: Müşteri numarası  \n 
+    Attrition_Flag: TARGET. Churn etti mi etmedi mi bilgisine sahip. (kaggle'da şöyle yazmışlar: if the account is closed then 1 else 0)
+    Customer_Age: müşterinin yaşı
+    Gender: müşterinin cinsiyeti (F, M)
+    Dependent_count: müşterinin bakmakla yükümlü olduğu kişi sayısı
+    Education_Level: eğitim seviyesi (High School, Graduate, Uneducated, Unknown, College, Post-Graduate, Doctorate)
+    Marital_Status: müşterinin medeni durumu (Married, Single, Unknown, Divorced)
+    Income_Category: müşterinin hangi gelir kategorisinde olduğu bilgisi ($60K - $80K, Less than $40K, $80K - $120K, $40K - $60K, $120K +, Unknown)
+# Card_Category: müşterinin sahip olduğu kartın türü (Blue, Silver, Gold, Platinum)
+# Months_on_book: müşteri kaç aydır bu bankada
+# * Total_Relationship_Count: Total no. of products held by the customer. yani müşterinin aynı bankadan hem kredi kartı
+#                           hem banka kartı ve farklı tipte hesapları olabilir savings account gibi
+# * Months_Inactive_12_mon: müşterinin son 12 ayda kaç ay inactive kaldığının sayısı
+# Contacts_Count_12_mon: müşteriyle son 12 ayda kurulan iletişim sayısı
+# Credit_Limit: müşterinin kredi kartının limiti
+# * Total_Revolving_Bal: devir bakiyesi (Bu terim, müşterinin ödeme yapması gereken ancak henüz ödenmemiş olan borç
+# #                    miktarını ifade eder. Yani, müşterinin kredi kartı hesabında biriken ve henüz ödenmemiş olan borç tutarıdır.)
+# Avg_Open_To_Buy:  müşterinin ulaşabileceği maksimum kredi miktarının son 12 aydaki ortalaması
+# Total_Amt_Chng_Q4_Q1: Change in Transaction Amount (Q4 over Q1)
+# Total_Trans_Amt: son 12 aydaki tüm transaction'lardan gelen miktar
+# * Total_Trans_Ct: son 12 aydaki toplam transaction sayısı
+# Total_Ct_Chng_Q4_Q1: Change in Transaction Count (Q4 over Q1)
+# * Avg_Utilization_Ratio: müşterinin mevcut kredi kartı borçlarının kredi limitine oranını ifade eder"""
+)
 
 
 

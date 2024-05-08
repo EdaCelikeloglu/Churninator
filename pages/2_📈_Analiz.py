@@ -7,6 +7,7 @@ import plotly.graph_objects as go
 import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
+from math import pi
 from sklearn.impute import KNNImputer
 from sklearn.neighbors import LocalOutlierFactor
 from sklearn.preprocessing import OrdinalEncoder
@@ -403,17 +404,17 @@ fig = px.bar(mean_scores_by_target, x="Target", y="Important_client_score",
 fig.update_layout(height=400, width=400)
 st.plotly_chart(fig)
 
-"""
+
 # Dilara says: bunu Radar grafiğinde verdiğimiz için tekrar ayrıca vermeyelim diye düşünüyorum.
 # müşteri ile iletişim sayısı ve target:
-mean_churn_by_contact = df.groupby("Contacts_Count_12_mon")["Target"].mean().reset_index()
-mean_churn_by_contact = mean_churn_by_contact.rename(columns={"Target": "Churn_Rate"})
-fig = px.bar(mean_churn_by_contact, x="Contacts_Count_12_mon", y="Churn_Rate",
-             labels={"Contacts_Count_12_mon": "İletişim Sayısı", "Churn_Rate": "Ortalama Churn Oranı"},
-             title="İletişim Sayısına Göre Ortalama Churn Oranı")
-fig.update_layout(height=400, width=400)
-st.plotly_chart(fig)
-"""
+# mean_churn_by_contact = df.groupby("Contacts_Count_12_mon")["Target"].mean().reset_index()
+# mean_churn_by_contact = mean_churn_by_contact.rename(columns={"Target": "Churn_Rate"})
+# fig = px.bar(mean_churn_by_contact, x="Contacts_Count_12_mon", y="Churn_Rate",
+#              labels={"Contacts_Count_12_mon": "İletişim Sayısı", "Churn_Rate": "Ortalama Churn Oranı"},
+#              title="İletişim Sayısına Göre Ortalama Churn Oranı")
+# fig.update_layout(height=400, width=400)
+# st.plotly_chart(fig)
+
 
 
 #Age_&_Marital   Gender_&_Age        Card_&_Age değişkenlerini target ile baktım:
@@ -435,38 +436,42 @@ st.plotly_chart(fig_age_marital)
 st.plotly_chart(fig_gender_age)
 st.plotly_chart(fig_card_age)
 
-"""
+
 # burada Dec_ct_dec_amt kategorisi nedir? Çok fazla yoğunluk var orda
 # Dilara says: burası sanki çok bir şey söylemiyor ya
 #  Ct_vs_Amt ile Target:
-fig = px.histogram(df, x="Ct_vs_Amt", color="Target", barmode="group",
-                   title="Ct_vs_Amt Değişkeninin Target İle İlişkisi",
-                   labels={"Ct_vs_Amt": "Ct_vs_Amt", "Target": "Target Ortalaması"},
-                   color_discrete_map={0: "lightblue", 1: "salmon"})
+# fig = px.histogram(df, x="Ct_vs_Amt", color="Target", barmode="group",
+#                    title="Ct_vs_Amt Değişkeninin Target İle İlişkisi",
+#                    labels={"Ct_vs_Amt": "Ct_vs_Amt", "Target": "Target Ortalaması"},
+#                    color_discrete_map={0: "lightblue", 1: "salmon"})
+#
+# fig.update_layout(bargap=0.1)
+# st.plotly_chart(fig)
 
-fig.update_layout(bargap=0.1)
-st.plotly_chart(fig)
-"""
 # bunun notunu almışım birlikte yorumlayalım.:
-fig = px.scatter(df, x="Credit_Limit", y="Total_Revolving_Bal", color="Income_Category",
-                 title="Kredi Limiti ve Devir Bakiyesi İlişkisi",
-                 labels={"Credit_limit": "Kredi Limiti", "Total_revolving_Bal": "Devir Bakiyesi"},
-                 color_discrete_sequence=px.colors.qualitative.Set2)
-fig.update_layout(height=800, width=1200)
-st.plotly_chart(fig)
+# fig = px.scatter(df, x="Credit_Limit", y="Total_Revolving_Bal", color="Income_Category",
+#                  title="Kredi Limiti ve Devir Bakiyesi İlişkisi",
+#                  labels={"Credit_limit": "Kredi Limiti", "Total_revolving_Bal": "Devir Bakiyesi"},
+#                  color_discrete_sequence=px.colors.qualitative.Set2)
+# fig.update_layout(height=800, width=1200)
+# st.plotly_chart(fig)
 
+# df["Credit_Limit_bin"] = pd.qcut(df["Credit_Limit"], 7, labels=[1, 2, 3, 4, 5, 6, 7])
+# df["Total_Revolving_Bal_bin"] = np.where((df["Total_Revolving_Bal"] <= 500), 250, np.where((df["Total_Revolving_Bal"] <= 1000), 750, np.where((df["Total_Revolving_Bal"] <= 1500), 1250, np.where((df["Total_Revolving_Bal"] <= 2000), 1750, np.where((df["Total_Revolving_Bal"] <= 2500), 2250, 0)))))
+# grouped_data = df.groupby(['Total_Revolving_Bal_bin', 'Credit_Limit_bin'])['Income_Category'].mean().unstack()
 
-#### DİLARA ŞEKER GRAFİĞİ DENEME BAŞLANGIÇ
+data = {
+    '1': [0.000, 0.515, 0.552, 0.532, 0.616, 0.000],
+    '2': [0.818, 0.594, 0.575, 0.602, 0.610, 0.528],
+    '3': [0.636, 0.750, 0.939, 0.895, 0.979, 0.711],
+    '4': [0.800, 1.198, 1.024, 1.137, 1.071, 1.171],
+    '5': [1.403, 1.442, 1.274, 1.390, 1.308, 1.699],
+    '6': [2.052, 2.057, 2.033, 2.043, 2.034, 1.951],
+    '7': [2.974, 2.979, 2.842, 3.006, 2.924, 3.117]}
 
-import seaborn as sns
-import matplotlib.pyplot as plt
+index = [0, 250, 750, 1250, 1750, 2250]
 
-# Create the bins for Credit_Limit and Total_Revolving_Bal
-df["Credit_Limit_bin"] = pd.qcut(df["Credit_Limit"], 7, labels=[1, 2, 3, 4, 5, 6, 7])
-df["Total_Revolving_Bal_bin"] = pd.qcut(df["Total_Revolving_Bal"], 6, labels=[1, 2, 3, 4, 5], duplicates="drop")
-
-# Group the data by bins and calculate the mean of Income_Category
-grouped_data = df.groupby(['Total_Revolving_Bal_bin', 'Credit_Limit_bin'])['Income_Category'].mean().unstack()
+grouped_data = pd.DataFrame(data, index=index)
 
 # Plot the heatmap-like graph
 fig, ax = plt.subplots(figsize=(10, 8))
@@ -621,6 +626,94 @@ for i, category in enumerate(categories):
     start += len(unique_vals)
     ax.text(0, 0, "1", color='black', ha='center', va='center', fontsize=12)
 fig.legend()
+
+####### Dilara ekleme başlangıç
+
+# set figure size
+plt.figure(figsize=(20,10))
+
+# plot polar axis
+ax = plt.subplot(111, polar=True)
+
+# remove grid
+plt.axis('off')
+
+# Set the coordinates limits
+upperLimit = 100
+lowerLimit = 30
+
+# Compute max and min in the dataset
+max = df['Value'].max()
+
+# Let's compute heights: they are a conversion of each item value in those new coordinates
+# In our example, 0 in the dataset will be converted to the lowerLimit (10)
+# The maximum will be converted to the upperLimit (100)
+slope = (max - lowerLimit) / max
+heights = slope * df.Value + lowerLimit
+
+# Compute the width of each bar. In total we have 2*Pi = 360°
+width = 2*np.pi / len(df.index)
+
+# Compute the angle each bar is centered on:
+indexes = list(range(1, len(df.index)+1))
+angles = [element * width for element in indexes]
+angles
+
+# Draw bars
+bars = ax.bar(
+    x=angles,
+    height=heights,
+    width=width,
+    bottom=lowerLimit,
+    linewidth=2,
+    edgecolor="white")
+
+# initialize the figure
+plt.figure(figsize=(20,10))
+ax = plt.subplot(111, polar=True)
+plt.axis('off')
+
+# Draw bars
+bars = ax.bar(
+    x=angles,
+    height=heights,
+    width=width,
+    bottom=lowerLimit,
+    linewidth=2,
+    edgecolor="white",
+    color="#61a4b2",
+)
+
+# little space between the bar and the label
+labelPadding = 4
+
+# Add labels
+for bar, angle, height, label in zip(bars,angles, heights, df["Name"]):
+
+    # Labels are rotated. Rotation must be specified in degrees :(
+    rotation = np.rad2deg(angle)
+
+    # Flip some labels upside down
+    alignment = ""
+    if angle >= np.pi/2 and angle < 3*np.pi/2:
+        alignment = "right"
+        rotation = rotation + 180
+    else:
+        alignment = "left"
+
+    # Finally add the labels
+    ax.text(
+        x=angle,
+        y=lowerLimit + bar.get_height() + labelPadding,
+        s=label,
+        ha=alignment,
+        va='center',
+        rotation=rotation,
+        rotation_mode="anchor")
+
+
+###### Dilara ekleme son
+
 # Target 0 için
 ax = axes[1]
 total_categories = sum(filtered_df0[cat].nunique() for cat in categories)
@@ -708,13 +801,7 @@ progress_bar.empty()
 st.button("Re-run")
 
 
-######## DİLARA RADAR BAŞLANGIÇ
-
-# Libraries
-import matplotlib.pyplot as plt
-import pandas as pd
-from math import pi
-
+# Radar grafiği
 # ------- PART 0: Reverse MinMax Scaler
 df['FrequencyScore'] = df['FrequencyScore'].cat.codes
 df['MonetaryScore'] = df['MonetaryScore'].cat.codes

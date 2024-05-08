@@ -425,7 +425,7 @@ bins = [25, 35, 55, 74]
 df['Customer_Age_Category'] = pd.cut(df['Customer_Age'], bins=bins, labels=labels)
 
 df["Days_Inactive_Last_Year"] = df["Months_Inactive_12_mon"] * 30
-df["Days_Inactive_Last_Year"].value_counts()
+df["Days_2_Last_Year"].value_counts()
 
 # 0'ları 1, 6'ları 5 yapma:
 df["Days_Inactive_Last_Year"].replace(0, 30, inplace=True)
