@@ -17,7 +17,7 @@ warnings.simplefilter(action="ignore")
 
 
 
-st.set_page_config(page_title="Analiz", page_icon="📈", layout="wide")
+st.set_page_config(page_title="Analiz", page_icon="📈")
 
 st.markdown("# Analiz")
 st.sidebar.header("Analiz")
@@ -305,20 +305,6 @@ df.shape
 cat_cols, num_cols, cat_but_car = grab_col_names(df)
 
 
-# One-hot encoding:
-df = one_hot_encoder(df, ["Marital_Status",
-                          "Age_&_Marital",
-                          "Gender_&_Age",
-                          "Card_&_Age",
-                          "Gender_&_Frequency",
-                          "Gender_&_Monetary",
-                          'Ct_vs_Amt',
-                          'Dependent_count',
-                          'Total_Relationship_Count',
-                          'Months_Inactive_12_mon',
-                          'Contacts_Count_12_mon'],
-                          drop_first=True)
-
 # Gizemin yarattığı ve belki onehot'a girecek kolonlar:
 # 'Year_on_book', "RFM_SCORE", Segment, Cluster, RFMSegment, cluster_no
 
@@ -370,85 +356,9 @@ df['Segment'] = df['Segment'].replace(seg_map, regex=True)
 df.head(40)
 
 
-# Feature scaling (robust):
-# TODO GBM için scale etmeden deneyeceğiz.
-rs = RobustScaler()
-df[num_cols] = rs.fit_transform(df[num_cols])
-df[["Days_Inactive_Last_Year"]] = rs.fit_transform(df[["Days_Inactive_Last_Year"]])
-
-
-from sklearn.cluster import KMeans
-# model fit edildi.
-kmeans = KMeans(n_clusters=4, max_iter=50, random_state=1)
-kmeans.fit(df[['Days_Inactive_Last_Year','Total_Trans_Ct', 'Total_Trans_Amt']])
-
-df["cluster_no"] = kmeans.labels_
-df["cluster_no"] = df["cluster_no"] + 1
-df.groupby("cluster_no")["Segment"].value_counts()
-
-ssd = []
-
-K = range(1, 30)
-
-for k in K:
-    kmeans = KMeans(n_clusters=k, random_state=1).fit(df[['Days_Inactive_Last_Year', 'Total_Trans_Ct', 'Total_Trans_Amt']])
-    ssd.append(kmeans.inertia_) #inertia her bir k değeri için ssd değerini bulur.
 
 
 
-# Optimum küme sayısını belirleme
-from yellowbrick.cluster import KElbowVisualizer
-kmeans = KMeans(random_state=1)
-elbow = KElbowVisualizer(kmeans, k=(2, 20))
-elbow.fit(df[['Days_Inactive_Last_Year', 'Total_Trans_Ct', 'Total_Trans_Amt']])
-elbow.show()
-elbow.elbow_value_
-
-# yeni optimum kümse sayısı ile model fit edilmiştir.
-kmeans = KMeans(n_clusters=elbow.elbow_value_, random_state=1).fit(df[['Days_Inactive_Last_Year', 'Total_Trans_Ct', 'Total_Trans_Amt']])
-
-
-# Cluster_no 0'dan başlamaktadır. Bunun için 1 eklenmiştir.
-df["cluster_no"] = kmeans.labels_
-df["cluster_no"] = df["cluster_no"] + 1
-
-df.groupby("cluster_no")["Segment"].value_counts()
-
-
-
-
-cat_cols, num_cols, cat_but_car = grab_col_names(df)
-
-df[num_cols].head()
-#33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333
-
-
-
-# Korelasyon Heatmap:
-def high_correlated_cols(dataframe, plot=False, corr_th=0.90):
-    corr = dataframe[num_cols].corr()
-    cor_matrix = corr.abs()
-    upper_triangle_matrix = cor_matrix.where(np.triu(np.ones(cor_matrix.shape), k=1).astype(bool))
-    drop_list = [col for col in upper_triangle_matrix if any(upper_triangle_matrix[col] > corr_th)]
-    if plot:
-        sns.set(rc={'figure.figsize': (12, 12)})
-        sns.heatmap(corr, cmap='RdBu', annot= True, vmin=-1, vmax=1)
-        plt.show()
-    return drop_list
-
-
-drop_list = high_correlated_cols(df, plot=True)
-
-df.drop(columns=drop_list, inplace=True, axis=1)
-
-df.shape
-#(10007, 96)
-
-cat_cols, num_cols, cat_but_car = grab_col_names(df)
-
-
-
-df[['MonetaryScore', 'FrequencyScore']] = df[['MonetaryScore', 'FrequencyScore']].astype(int)
 
 
 
@@ -628,13 +538,13 @@ st.pyplot(fig)
 
 
 
-#büyük Pasta
-#'Education_Level' 'Income_Category' bunları da koycam Nanlar sorun çıkardı
-fig = px.sunburst(df, path=['Target', 'Gender', 'Customer_Age_Category', 'Marital_Status'])
-fig.update_layout(height=1000, width=1000)
-# Streamlit ile gösterme
-st.plotly_chart(fig)
-#bunun farklı versiyonlarını deneyelim
+# #büyük Pasta
+# #'Education_Level' 'Income_Category' bunları da koycam Nanlar sorun çıkardı
+# fig = px.sunburst(df, path=['Target', 'Gender', 'Customer_Age_Category', 'Marital_Status'])
+# fig.update_layout(height=1000, width=1000)
+# # Streamlit ile gösterme
+# st.plotly_chart(fig)
+# #bunun farklı versiyonlarını deneyelim
 
 
 
@@ -816,25 +726,7 @@ st.pyplot(fig)
 
 
 
-progress_bar = st.sidebar.progress(0)
-status_text = st.sidebar.empty()
-last_rows = np.random.randn(1, 1)
-chart = st.line_chart(last_rows)
 
-for i in range(1, 101):
-    new_rows = last_rows[-1, :] + np.random.randn(5, 1).cumsum(axis=0)
-    status_text.text("%i%% Complete" % i)
-    chart.add_rows(new_rows)
-    progress_bar.progress(i)
-    last_rows = new_rows
-    time.sleep(0.05)
-
-progress_bar.empty()
-
-# Streamlit widgets automatically run the script from top to bottom. Since
-# this button is not connected to any other logic, it just causes a plain
-# rerun.
-st.button("Re-run")
 
 
 # Radar grafiği
