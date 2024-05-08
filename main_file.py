@@ -31,8 +31,6 @@ from sklearn.impute import KNNImputer
 from statsmodels.stats.outliers_influence import variance_inflation_factor
 
 
-
-
 warnings.simplefilter(action="ignore")
 
 pd.set_option('display.max_columns', None)
@@ -121,9 +119,7 @@ def one_hot_encoder(dataframe, categorical_cols, drop_first=True):
 def combine_categories(df, cat_col1, cat_col2, new_col_name):
     df[new_col_name] = df[cat_col1].astype(str) + '_' + df[cat_col2].astype(str)
 
-########################################################################################################################
-########################################################################################################################
-########################################################################################################################
+
 # en base model
 df = pd.read_csv("BankChurners.csv")
 
@@ -215,85 +211,8 @@ def model_metrics(X_train, y_train, X_test, y_test):
         print(report)
 
 model_metrics(X_train_base, y_train_base, X_test_base, y_test_base)
-# Base Models....
-# Classification Report for LR:
-#               precision    recall  f1-score   support
-#            0       0.92      0.97      0.94      1699
-#            1       0.76      0.54      0.63       327
-#     accuracy                           0.90      2026
-#    macro avg       0.84      0.75      0.79      2026
-# weighted avg       0.89      0.90      0.89      2026
-# Classification Report for KNN:
-#               precision    recall  f1-score   support
-#            0       0.91      0.97      0.94      1699
-#            1       0.78      0.49      0.60       327
-#     accuracy                           0.90      2026
-#    macro avg       0.84      0.73      0.77      2026
-# weighted avg       0.89      0.90      0.89      2026
-# Classification Report for SVC:
-#               precision    recall  f1-score   support
-#            0       0.93      0.98      0.96      1699
-#            1       0.87      0.62      0.72       327
-#     accuracy                           0.92      2026
-#    macro avg       0.90      0.80      0.84      2026
-# weighted avg       0.92      0.92      0.92      2026
-# Classification Report for CART:
-#               precision    recall  f1-score   support
-#            0       0.96      0.96      0.96      1699
-#            1       0.78      0.77      0.77       327
-#     accuracy                           0.93      2026
-#    macro avg       0.87      0.86      0.87      2026
-# weighted avg       0.93      0.93      0.93      2026
-# Classification Report for RF:
-#               precision    recall  f1-score   support
-#            0       0.96      0.99      0.97      1699
-#            1       0.92      0.76      0.83       327
-#     accuracy                           0.95      2026
-#    macro avg       0.94      0.87      0.90      2026
-# weighted avg       0.95      0.95      0.95      2026
-# Classification Report for Adaboost:
-#               precision    recall  f1-score   support
-#            0       0.96      0.98      0.97      1699
-#            1       0.88      0.81      0.84       327
-#     accuracy                           0.95      2026
-#    macro avg       0.92      0.89      0.91      2026
-# weighted avg       0.95      0.95      0.95      2026
-# Classification Report for GBM:
-#               precision    recall  f1-score   support
-#            0       0.97      0.99      0.98      1699
-#            1       0.94      0.85      0.89       327
-#     accuracy                           0.97      2026
-#    macro avg       0.95      0.92      0.94      2026
-# weighted avg       0.97      0.97      0.97      2026
-# Classification Report for XGBoost:
-#               precision    recall  f1-score   support
-#            0       0.97      0.98      0.98      1699
-#            1       0.90      0.86      0.88       327
-#     accuracy                           0.96      2026
-#    macro avg       0.94      0.92      0.93      2026
-# weighted avg       0.96      0.96      0.96      2026
-
-# Classification Report for LightGBM:
-#               precision    recall  f1-score   support
-#            0       0.98      0.98      0.98      1699
-#            1       0.90      0.89      0.89       327
-#     accuracy                           0.97      2026
-#    macro avg       0.94      0.94      0.94      2026
-# weighted avg       0.97      0.97      0.97      2026
-# Classification Report for CatBoost:
-#               precision    recall  f1-score   support
-#            0       0.98      0.99      0.98      1699
-#            1       0.92      0.89      0.91       327
-#     accuracy                           0.97      2026
-#    macro avg       0.95      0.94      0.95      2026
-# weighted avg       0.97      0.97      0.97      2026
 
 
-
-
-########################################################################################################################
-########################################################################################################################
-########################################################################################################################
 df = pd.read_csv("BankChurners.csv")
 
 df.drop([
@@ -324,7 +243,8 @@ plt.show()
 
 th = np.sort(df_scores)[25]
 
-df[df_scores < th].drop(axis=0, labels=df[df_scores < th].index)
+outliers = df_scores < th
+#df = df[~outliers]
 
 # Missing values
 cols_with_unknown = ['Income_Category', "Education_Level"]
@@ -563,29 +483,6 @@ df["Card_&_Age"].value_counts()
 
 cat_cols, num_cols, cat_but_car = grab_col_names(df)
 
-""" Kullanmadık ama mesela Card_&_Age'de ve Age_&_Marital'da 0.005 ratio'lu kategoriler var
-def rare_encoder(dataframe, rare_perc):
-    temp_df = dataframe.copy()
-
-    rare_columns = [col for col in temp_df.columns if temp_df[col].dtypes == 'O'
-                    and (temp_df[col].value_counts() / len(temp_df) < rare_perc).any(axis=None)] # any() çünkü col'un value_counts/len'ini yani value'larının yüzdelik ratio'larını alınca 0.01'den düşük herhangi biri (ANY) varsa, col'u al getir diyor.
-
-    for var in rare_columns:
-        tmp = temp_df[var].value_counts() / len(temp_df)     # bu ratio tablosunu, indeksi value (e.g. male/female), value'su ratio olacak şekilde pd.series (indeksli list) olarak kaydettim.
-        rare_labels = tmp[tmp < rare_perc].index    # sonra bu listede değeri 0.01'den küçük olanların indexini=label'ını kaydettim.
-        temp_df[var] = np.where(temp_df[var].isin(rare_labels), 'Rare', temp_df[var])
-        #temp_df["EMERGENCYSTATE_MODE"].isin(rare_labels) # output: tek bir sütun için her bir girdinin rare_labels'da olup olmamasına göre T/F döndürdü.
-
-        # type(rare_columns) = pandas.series
-        # tmp.dtype = float
-
-    return temp_df
-
-
-new_df = rare_encoder(df, 0.01)
-
-rare_analyser(new_df, "TARGET", cat_cols)
-"""
 
 categories_dict = {
         "Education_Level": ['Uneducated', 'High School', 'College', 'Graduate', 'Post-Graduate', 'Doctorate', np.nan],
@@ -608,21 +505,6 @@ for col in df.columns:
 df.head()
 cat_cols, num_cols, cat_but_car = grab_col_names(df)
 
-##### BAŞLANGIÇ Dilara recommendation yaratmaya çalışıyor
-
-#df.groupby("Segment")["Target"].mean()
-# About to Sleep        0.413
-# At Risk               0.049
-# Can't Loose           0.017
-# Champions             0.009
-# Hibernating           0.524
-# Loyal Customers       0.025
-# Need Attention        0.102
-# New Customers         0.128
-# Potential Loyalists   0.141
-# Promising             0.327
-
-##### BİTİŞ Dilara recommendation yaratmaya çalışıyor
 
 df = one_hot_encoder(df, ["Gender"], drop_first=True) # M'ler 1.
 df.rename(columns={"Gender_M": "Gender"}, inplace=True)
@@ -635,9 +517,10 @@ df_numeric = df[numeric_columns]
 imputer = KNNImputer(n_neighbors=10)
 df_numeric_imputed = pd.DataFrame(imputer.fit_transform(df_numeric), columns=numeric_columns)
 df = pd.concat([df_numeric_imputed, df[categorical_columns]], axis=1)
-df["Education_Level"] = df["Education_Level"].round().astype(int)
-df["Income_Category"] = df["Income_Category"].round().astype(int)
+df["Education_Level"] = df["Education_Level"].round().astype("Int64")
+df["Income_Category"] = df["Income_Category"].round().astype("Int64")
 
+df = df[~outliers]
 
 # One-hot encoding:
 df = one_hot_encoder(df, ["Gender",
@@ -989,10 +872,10 @@ classifiers = [('Adaboost', AdaBoostClassifier(), adaboost_params),
     ("RF", RandomForestClassifier(), rf_params),
     ("LogisticRegression", LogisticRegression(), logistic_params),  # Lojistik Regresyon
     ("SVC", SVC(), svc_params),  # Destek Vektör Makineleri
-    #("GBM", GradientBoostingClassifier(), gbm_params),  # Gradyan Arttırma Makineleri
-    #('XGBoost', XGBClassifier(use_label_encoder=False, eval_metric='logloss'), xgboost_params),
-    #('LightGBM', LGBMClassifier(force_col_wise=True), lightgbm_params),
-    #('CatBoost', CatBoostClassifier(verbose=False), catboost_params_optimized)
+    ("GBM", GradientBoostingClassifier(), gbm_params),  # Gradyan Arttırma Makineleri
+    ('XGBoost', XGBClassifier(use_label_encoder=False, eval_metric='logloss'), xgboost_params),
+    ('LightGBM', LGBMClassifier(force_col_wise=True), lightgbm_params),
+    ('CatBoost', CatBoostClassifier(verbose=False), catboost_params_optimized)
 ]
 
 def hyperparameter_optimization(X_train, y_train, X_test, y_test, cv=3, scoring="roc_auc"):
