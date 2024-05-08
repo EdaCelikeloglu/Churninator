@@ -107,7 +107,7 @@ cat_cols, num_cols, cat_but_car = grab_col_names(df)
 
 # Outlier temizleme
 # IQR
-def outlier_thresholds(dataframe, col_name, q1=0.25, q3=0.75):
+def outlier_thresholds(dataframe, col_name, q1=0.10, q3=0.90):
     quartile1 = dataframe[col_name].quantile(q1)
     quartile3 = dataframe[col_name].quantile(q3)
     interquantile_range = quartile3 - quartile1
@@ -127,14 +127,42 @@ def replace_with_thresholds(dataframe, variable):
     dataframe.loc[(dataframe[variable] < low_limit), variable] = low_limit
     dataframe.loc[(dataframe[variable] > up_limit), variable] = up_limit
 
-for col in num_cols:
-    print(col, check_outlier(df, col))
+def grab_outliers(dataframe, col_name, index=False):
+    low, up = outlier_thresholds(dataframe, col_name)
+    print(dataframe[((dataframe[col_name] < low) | (dataframe[col_name] > up))].shape[0])
+    # if dataframe[((dataframe[col_name] < low) | (dataframe[col_name] > up))].shape[0] > 10:
+    #     print(dataframe[((dataframe[col_name] < low) | (dataframe[col_name] > up))].head())
+    # else:
+    #     print(dataframe[((dataframe[col_name] < low) | (dataframe[col_name] > up))])
+
+    if index:
+        outlier_index = dataframe[((dataframe[col_name] < low) | (dataframe[col_name] > up))].index
+        return outlier_index
 
 for col in num_cols:
-    if check_outlier(df, col):
-        replace_with_thresholds(df, col)
+    print(col, grab_outliers(df, col))
 
+df.shape
+#(10127, 20)
 
+def remove_outliers_from_all_columns(dataframe):
+    for col_name in num_cols:
+        low, up = outlier_thresholds(dataframe, col_name)  # Aykırı değer sınırlarını hesapla
+        outliers = dataframe[(dataframe[col_name] < low) | (dataframe[col_name] > up)]
+        print(f"{col_name} için aykırı değer sayısı: {outliers.shape[0]}")
+        # Aykırı değerleri dataframe'den çıkar
+        dataframe = dataframe.drop(outliers.index).reset_index(drop=True)
+    return dataframe
+
+df = remove_outliers_from_all_columns(df)
+df.shape
+#(10034, 20)
+
+# for col in num_cols:
+#     if check_outlier(df, col):
+#         replace_with_thresholds(df, col)
+
+cat_cols, num_cols, cat_but_car = grab_col_names(df)
 
 # LOF
 clf = LocalOutlierFactor(n_neighbors=20)
@@ -143,16 +171,17 @@ clf.fit_predict(df[num_cols])
 df_scores = clf.negative_outlier_factor_
 
 scores = pd.DataFrame(np.sort(df_scores))
-scores.plot(stacked=True, xlim=[0, 50], style='.-')
+scores.plot(stacked=True, xlim=[0, 100], style='.-')
 plt.show()
 
-th = np.sort(df_scores)[21]
+th = np.sort(df_scores)[27]
 
 df.drop(axis=0, labels=df[df_scores < th].index, inplace=True) # Dropping the outliers.
 df.head()
 
 df = df.reset_index(drop=True)
-
+df.shape
+#(10007, 20)
 
 cat_cols, num_cols, cat_but_car = grab_col_names(df)
 # Missing values
@@ -304,8 +333,7 @@ cat_cols, num_cols, cat_but_car = grab_col_names(df)
 
 
 # One-hot encoding:
-df = one_hot_encoder(df, ["Gender",
-                          "Marital_Status",
+df = one_hot_encoder(df, ["Marital_Status",
                           "Age_&_Marital",
                           "Gender_&_Age",
                           "Card_&_Age",
@@ -440,9 +468,11 @@ drop_list = high_correlated_cols(df, plot=True)
 
 df.drop(columns=drop_list, inplace=True, axis=1)
 
+df.shape
+#(10007, 96)
 
 cat_cols, num_cols, cat_but_car = grab_col_names(df)
-# Multicollinearity test:
+
 
 
 df[['MonetaryScore', 'FrequencyScore']] = df[['MonetaryScore', 'FrequencyScore']].astype(int)
@@ -457,28 +487,53 @@ X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_
 # Undersampling (Tomek Links)
 
 
+# summarize class distribution
+counter = Counter(y)
+print(counter) # {0: 8489, 1: 1613} eda: ({0: 8397, 1: 1610})
+# define the undersampling method
+undersample = TomekLinks()
+# transform the dataset
+X, y = undersample.fit_resample(X, y)
+# summarize the new class distribution
+counter = Counter(y)
+print(counter) # {0: 8347, 1: 1613} eda: ({0: 8247, 1: 1610})
+
+#
+#
+# from imblearn.under_sampling import RandomUnderSampler
 # # summarize class distribution
-# counter = Counter(y)
-# print(counter) # {0: 8489, 1: 1613}
-# # define the undersampling method
-# undersample = TomekLinks()
-# # transform the dataset
-# X, y = undersample.fit_resample(X, y)
-# # summarize the new class distribution
-# counter = Counter(y)
-# print(counter) # {0: 8347, 1: 1613}
+# print(Counter(y)) # {0: 8489, 1: 1613}
+# # define undersample strategy
+# undersample = RandomUnderSampler(sampling_strategy='majority')
+# # fit and apply the transform
+# X_over, y_over = undersample.fit_resample(X, y)
+# # summarize class distribution
+# print(Counter(y_over)) # {0: 1613, 1: 1613}
 
+def model_metrics(X_train, y_train, X_test, y_test):
+    print("Base Models....")
+    classifiers = [('LR', LogisticRegression()),
+                   ('KNN', KNeighborsClassifier()),
+                   ("SVC", SVC()),
+                   ("CART", DecisionTreeClassifier()),
+                   ("RF", RandomForestClassifier()),
+                   ('Adaboost', AdaBoostClassifier()),
+                   ('GBM', GradientBoostingClassifier()),
+                   ('XGBoost', XGBClassifier(use_label_encoder=False, eval_metric='logloss')),
+                   ('LightGBM', LGBMClassifier()),
+                   ('CatBoost', CatBoostClassifier(verbose=False))
+                   ]
 
+    for name, classifier in classifiers:
+        model = classifier.fit(X_train, y_train)
+        y_pred = model.predict(X_test)
 
-from imblearn.under_sampling import RandomUnderSampler
-# summarize class distribution
-print(Counter(y)) # {0: 8489, 1: 1613}
-# define undersample strategy
-undersample = RandomUnderSampler(sampling_strategy='majority')
-# fit and apply the transform
-X_over, y_over = undersample.fit_resample(X, y)
-# summarize class distribution
-print(Counter(y_over)) # {0: 1613, 1: 1613}
+        # Classification Report
+        report = classification_report(y_test, y_pred)
+        print(f"Classification Report for {name}:")
+        print(report)
+
+model_metrics(X_train, y_train, X_test, y_test)
 
 
 # Model:
@@ -621,25 +676,38 @@ logistic_params = {
     'class_weight': [None, 'balanced']
 }
 
+xgboost_params = {"learning_rate": [0.01, 0.05, 0.1, 0.5],
+                  "max_depth": [3, 5, 7, 10],
+                  "n_estimators": [50, 100, 200, 300],
+                  "colsample_bytree": [0.7, 1]}
+
+xgboost_params = {
+    "learning_rate": [0.005, 0.01, 0.05, 0.1, 0.2],  # Geniş aralık, farklı öğrenme hızlarını keşfetmek için
+    "max_depth": [3, 5, 7, 10, 12],                  # Hem düşük hem de yüksek derinlikler dahil
+    "n_estimators": [50, 100, 200, 300, 400],        # Geniş aralık, daha fazla model karmaşıklığı varyasyonu için
+    "colsample_bytree": [0.5, 0.7, 0.9, 1],          # Farklı özellik alt küme oranları
+    "subsample": [0.6, 0.7, 0.8, 0.9, 1]             # Örnek alt küme oranları, çeşitliliği artırmak için
+}
+
 
 
 
 
 ##############################################################################
-classifiers = [('Adaboost', AdaBoostClassifier(), adaboost_params),
-    ('KNN', KNeighborsClassifier(), knn_params),
-    ("CART", DecisionTreeClassifier(), cart_params),
-    ("RF", RandomForestClassifier(), rf_params),
-    ("LogisticRegression", LogisticRegression(), logistic_params),  # Lojistik Regresyon
-    ("SVC", SVC(), svc_params),  # Destek Vektör Makineleri
-    ("GBM", GradientBoostingClassifier(), gbm_params),  # Gradyan Arttırma Makineleri
+classifiers = [#('Adaboost', AdaBoostClassifier(), adaboost_params),
+    #('KNN', KNeighborsClassifier(), knn_params),
+    #("CART", DecisionTreeClassifier(), cart_params),
+    #("RF", RandomForestClassifier(), rf_params),
+    #("LogisticRegression", LogisticRegression(), logistic_params),  # Lojistik Regresyon
+    #("SVC", SVC(), svc_params),  # Destek Vektör Makineleri
+    #("GBM", GradientBoostingClassifier(), gbm_params),  # Gradyan Arttırma Makineleri
     ('XGBoost', XGBClassifier(use_label_encoder=False, eval_metric='logloss'), xgboost_params),
-    ('LightGBM', LGBMClassifier(force_col_wise=True), lightgbm_params),
-    ('CatBoost', CatBoostClassifier(verbose=False), catboost_params)
+    #('LightGBM', LGBMClassifier(force_col_wise=True), lightgbm_params),
+    #('CatBoost', CatBoostClassifier(verbose=False), catboost_params)
 ]
 
 
-def hyperparameter_optimization(X_train, y_train, X_test, y_test, cv=3, scoring="roc_auc"):
+def hyperparameter_optimization(X_train, y_train, X_test, y_test, cv=5, scoring="recall"):
     print("Hyperparameter Optimization....")
     best_models = {}
     for name, classifier, params in classifiers:
