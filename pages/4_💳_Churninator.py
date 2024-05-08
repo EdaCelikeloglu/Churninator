@@ -158,9 +158,7 @@ df = remove_outliers_from_all_columns(df)
 df.shape
 #(10034, 20)
 
-# for col in num_cols:
-#     if check_outlier(df, col):
-#         replace_with_thresholds(df, col)
+
 
 cat_cols, num_cols, cat_but_car = grab_col_names(df)
 
@@ -676,18 +674,18 @@ logistic_params = {
     'class_weight': [None, 'balanced']
 }
 
-xgboost_params = {"learning_rate": [0.01, 0.05, 0.1, 0.5],
-                  "max_depth": [3, 5, 7, 10],
-                  "n_estimators": [50, 100, 200, 300],
-                  "colsample_bytree": [0.7, 1]}
-
-xgboost_params = {
-    "learning_rate": [0.005, 0.01, 0.05, 0.1, 0.2],  # Geniş aralık, farklı öğrenme hızlarını keşfetmek için
-    "max_depth": [3, 5, 7, 10, 12],                  # Hem düşük hem de yüksek derinlikler dahil
-    "n_estimators": [50, 100, 200, 300, 400],        # Geniş aralık, daha fazla model karmaşıklığı varyasyonu için
-    "colsample_bytree": [0.5, 0.7, 0.9, 1],          # Farklı özellik alt küme oranları
-    "subsample": [0.6, 0.7, 0.8, 0.9, 1]             # Örnek alt küme oranları, çeşitliliği artırmak için
-}
+# xgboost_params = {"learning_rate": [0.01, 0.05, 0.1, 0.5],
+#                   "max_depth": [3, 5, 7, 10],
+#                   "n_estimators": [50, 100, 200, 300],
+#                   "colsample_bytree": [0.7, 1]}
+#
+# xgboost_params = {
+#     "learning_rate": [0.005, 0.01, 0.05, 0.1, 0.2],  # Geniş aralık, farklı öğrenme hızlarını keşfetmek için
+#     "max_depth": [3, 5, 7, 10, 12],                  # Hem düşük hem de yüksek derinlikler dahil
+#     "n_estimators": [50, 100, 200, 300, 400],        # Geniş aralık, daha fazla model karmaşıklığı varyasyonu için
+#     "colsample_bytree": [0.5, 0.7, 0.9, 1],          # Farklı özellik alt küme oranları
+#     "subsample": [0.6, 0.7, 0.8, 0.9, 1]             # Örnek alt küme oranları, çeşitliliği artırmak için
+# }
 
 
 
