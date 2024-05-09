@@ -63,7 +63,7 @@ st.markdown(
         justify-content: center;
         align-items: center;
         height: 100vh;
-        background-image: url('Background_image.svg');
+        background-image: url('Giris_arkaplan.svg');
         background-size: cover;
     }
     .button {
