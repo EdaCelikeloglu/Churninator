@@ -1,39 +1,11 @@
 import streamlit as st
 import pandas as pd
-import altair as alt
-from urllib.error import URLError
-import plotly as px
-import plotly.express as px
-import plotly.graph_objects as go
-from catboost import CatBoostClassifier
-from lightgbm import LGBMClassifier
-from scipy.stats import chi2_contingency
-from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier, VotingClassifier, AdaBoostClassifier
-from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import (accuracy_score, precision_score, recall_score, f1_score, roc_auc_score, confusion_matrix,
-                             classification_report, RocCurveDisplay)
-from sklearn.model_selection import train_test_split, GridSearchCV, cross_validate, validation_curve, RandomizedSearchCV
-from sklearn.neighbors import KNeighborsClassifier, LocalOutlierFactor
-from sklearn.preprocessing import LabelEncoder, OrdinalEncoder, RobustScaler, StandardScaler
-from sklearn.svm import SVC
-from sklearn.tree import DecisionTreeClassifier, export_graphviz, export_text
-from xgboost import XGBClassifier
-import graphviz
-import joblib
 import matplotlib.pyplot as plt
 import missingno as msno
 import numpy as np
 import seaborn as sns
 import warnings
-from collections import Counter
-from sklearn.datasets import make_classification
-from imblearn.over_sampling import SMOTE
-from matplotlib import pyplot
-from numpy import where
-from sklearn.metrics import classification_report
-from sklearn.impute import KNNImputer
-from statsmodels.stats.outliers_influence import variance_inflation_factor
-from main import process_data
+
 
 warnings.simplefilter(action="ignore")
 
