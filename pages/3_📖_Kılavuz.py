@@ -14,7 +14,7 @@ pd.set_option('display.width', 170)
 pd.set_option('display.max_rows', None)
 pd.set_option('display.float_format', lambda x: '%.3f' % x)
 
-st.set_page_config(page_title="Churninator | Kılavuz", page_icon="🤖")
+st.set_page_config(page_title="Churninator | Kılavuz", page_icon="🤖", layout="wide")
 st.sidebar.header("Kılavuz")
 
 st.markdown("# Churninator ile Geleceğe Hazır Olun!")
@@ -146,96 +146,117 @@ def add_labels(angles, values, labels, offset, ax):
         ax.text(x=angle, y=value + padding, s=label, ha=alignment, va="center", rotation=rotation, rotation_mode="anchor")
 
 
-def circular_bar_graph(df, attrition, col_list, figsize=(10, 10)):
+# def circular_bar_graph(df, attrition, col_list, figsize=(10, 10)):
+#
+#     new_dfs = []  # List to store individual DataFrames
+#     for col in col_list:
+#         value_counts = df[col].value_counts()
+#         new_df = pd.DataFrame({'name': value_counts.index,
+#                                'value': (value_counts / len(df[col]) * 100).values,
+#                                'group': [col] * len(value_counts)})
+#         new_dfs.append(new_df)
+#     final = pd.concat(new_dfs, ignore_index=True)
+#     VALUES = final["value"].values
+#     LABELS = final["name"].values
+#     GROUP = final["group"].values
+#
+#     PAD = 1
+#     ANGLES_N = len(VALUES) + PAD * len(np.unique(GROUP))
+#     ANGLES = np.linspace(0, 2 * np.pi, num=ANGLES_N, endpoint=False)
+#     WIDTH = (2 * np.pi) / len(ANGLES)
+#     OFFSET = np.pi / 2
+#
+#     unique_groups = []
+#     for group in GROUP:
+#         if group not in unique_groups:
+#             unique_groups.append(group)
+#
+#     # Calculate the group sizes while maintaining the order
+#     GROUPS_SIZE = [len(final[final["group"] == group]) for group in unique_groups]
+#
+#     # GROUPS_SIZE = [len(i[1]) for i in final.groupby("group")]
+#     COLORS = [f"C{i}" for i, size in enumerate(GROUPS_SIZE) for _ in range(size)]
+#
+#     offset = 0
+#     IDXS = []
+#     for size in GROUPS_SIZE:
+#         IDXS += list(range(offset + PAD, offset + size + PAD))
+#         offset += size + PAD
+#
+#     fig, ax = plt.subplots(figsize=figsize, subplot_kw={"projection": "polar"})
+#     ax.set_theta_offset(OFFSET)
+#     ax.set_ylim(-50, 100)
+#     ax.set_frame_on(False)
+#     ax.xaxis.grid(False)
+#     ax.yaxis.grid(False)
+#     ax.set_xticks([])
+#     ax.set_yticks([])
+#
+#     ax.bar(
+#         ANGLES[IDXS], VALUES, width=WIDTH, color=COLORS, edgecolor="white", linewidth=2)
+#
+#     add_labels(ANGLES[IDXS], VALUES, LABELS, OFFSET, ax)
+#     ax.text(0, -50, attrition, color='black', ha='center', va='center', fontsize=12)
+#
+#     # This iterates over the sizes of the groups adding reference lines and annotations.
+#     offset = 0
+#     #for group, size in zip(final["group"].unique(), GROUPS_SIZE):
+#     for group, size in zip(['Gender', "Income Category", "Education Level", "Dependent Count", 'Marital Status', "Card Category", "Months Inactive", 'Relationship Count', 'Contact Count'], GROUPS_SIZE):
+#         # Add line below bars
+#         x1 = np.linspace(ANGLES[offset + PAD], ANGLES[offset + size + PAD - 1], num=50)
+#         ax.plot(x1, [-5] * 50, color="#333333")
+#
+#         # Split the group name if it contains two words
+#         group_words = group.split()
+#         # Format the group name for display
+#         if len(group_words) == 2:
+#             group_display = '\n'.join(group_words)  # Display the second word in a new line
+#         else:
+#             group_display = group  # Keep the group name as it is if it contains only one word
+#
+#         # Add text to indicate group
+#         ax.text(
+#             np.mean(x1), -19, group_display, color="#333333", fontsize=8,
+#             fontweight="bold", ha="center", va="center")
+#
+#         # Add reference lines at 20, 40, 60, and 80
+#         x2 = np.linspace(ANGLES[offset], ANGLES[offset + PAD - 1], num=50)
+#         ax.plot(x2, [20] * 50, color="#bebebe", lw=0.8)
+#         ax.plot(x2, [40] * 50, color="#bebebe", lw=0.8)
+#         ax.plot(x2, [60] * 50, color="#bebebe", lw=0.8)
+#         ax.plot(x2, [80] * 50, color="#bebebe", lw=0.8)
+#
+#         offset += size + PAD
+#
+#     return fig
+#
+#
+# fig0 = circular_bar_graph(filtered_df0, 0, categories)
+# fig1 = circular_bar_graph(filtered_df1, 1, categories)
+#
+# st.pyplot(fig0)
+# st.pyplot(fig1)
 
-    new_dfs = []  # List to store individual DataFrames
-    for col in col_list:
-        value_counts = df[col].value_counts()
-        new_df = pd.DataFrame({'name': value_counts.index,
-                               'value': (value_counts / len(df[col]) * 100).values,
-                               'group': [col] * len(value_counts)})
-        new_dfs.append(new_df)
-    final = pd.concat(new_dfs, ignore_index=True)
-    VALUES = final["value"].values
-    LABELS = final["name"].values
-    GROUP = final["group"].values
-
-    PAD = 1
-    ANGLES_N = len(VALUES) + PAD * len(np.unique(GROUP))
-    ANGLES = np.linspace(0, 2 * np.pi, num=ANGLES_N, endpoint=False)
-    WIDTH = (2 * np.pi) / len(ANGLES)
-    OFFSET = np.pi / 2
-
-    unique_groups = []
-    for group in GROUP:
-        if group not in unique_groups:
-            unique_groups.append(group)
-
-    # Calculate the group sizes while maintaining the order
-    GROUPS_SIZE = [len(final[final["group"] == group]) for group in unique_groups]
-
-    # GROUPS_SIZE = [len(i[1]) for i in final.groupby("group")]
-    COLORS = [f"C{i}" for i, size in enumerate(GROUPS_SIZE) for _ in range(size)]
-
-    offset = 0
-    IDXS = []
-    for size in GROUPS_SIZE:
-        IDXS += list(range(offset + PAD, offset + size + PAD))
-        offset += size + PAD
-
-    fig, ax = plt.subplots(figsize=figsize, subplot_kw={"projection": "polar"})
-    ax.set_theta_offset(OFFSET)
-    ax.set_ylim(-50, 100)
-    ax.set_frame_on(False)
-    ax.xaxis.grid(False)
-    ax.yaxis.grid(False)
-    ax.set_xticks([])
-    ax.set_yticks([])
-
-    ax.bar(
-        ANGLES[IDXS], VALUES, width=WIDTH, color=COLORS, edgecolor="white", linewidth=2)
-
-    add_labels(ANGLES[IDXS], VALUES, LABELS, OFFSET, ax)
-    ax.text(0, -50, attrition, color='black', ha='center', va='center', fontsize=12)
-
-    # This iterates over the sizes of the groups adding reference lines and annotations.
-    offset = 0
-    #for group, size in zip(final["group"].unique(), GROUPS_SIZE):
-    for group, size in zip(['Gender', "Income Category", "Education Level", "Dependent Count", 'Marital Status', "Card Category", "Months Inactive", 'Relationship Count', 'Contact Count'], GROUPS_SIZE):
-        # Add line below bars
-        x1 = np.linspace(ANGLES[offset + PAD], ANGLES[offset + size + PAD - 1], num=50)
-        ax.plot(x1, [-5] * 50, color="#333333")
-
-        # Split the group name if it contains two words
-        group_words = group.split()
-        # Format the group name for display
-        if len(group_words) == 2:
-            group_display = '\n'.join(group_words)  # Display the second word in a new line
-        else:
-            group_display = group  # Keep the group name as it is if it contains only one word
-
-        # Add text to indicate group
-        ax.text(
-            np.mean(x1), -19, group_display, color="#333333", fontsize=8,
-            fontweight="bold", ha="center", va="center")
-
-        # Add reference lines at 20, 40, 60, and 80
-        x2 = np.linspace(ANGLES[offset], ANGLES[offset + PAD - 1], num=50)
-        ax.plot(x2, [20] * 50, color="#bebebe", lw=0.8)
-        ax.plot(x2, [40] * 50, color="#bebebe", lw=0.8)
-        ax.plot(x2, [60] * 50, color="#bebebe", lw=0.8)
-        ax.plot(x2, [80] * 50, color="#bebebe", lw=0.8)
-
-        offset += size + PAD
-
-    return fig
+##############################picture
 
 
-fig0 = circular_bar_graph(filtered_df0, 0, categories)
-fig1 = circular_bar_graph(filtered_df1, 1, categories)
+import streamlit as st
+from PIL import Image
 
-st.pyplot(fig0)
-st.pyplot(fig1)
+col = st.columns([0.5, 0.5], gap='small')
+
+with col[0]:
+    image = Image.open('pic0.png')
+    st.image(image, caption='0 Sınıfına Uzaktan Bakış')
+
+with col[1]:
+    image_1 = Image.open('pic1.png')
+    st.image(image_1, caption='1 Sınıfına Uzaktan Bakış')
+
+
+
+###############################picture
+
 
 ##########################################################################
 
