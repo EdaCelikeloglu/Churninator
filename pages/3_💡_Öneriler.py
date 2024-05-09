@@ -31,7 +31,7 @@ from sklearn.metrics import classification_report
 from sklearn.impute import KNNImputer
 from statsmodels.stats.outliers_influence import variance_inflation_factor
 
-st.set_page_config(page_title="Mapping Demo", page_icon="🌍")
+st.set_page_config(page_title="Churninator | Öneriler", page_icon=":robot:")
 
 st.markdown("# Mapping Demo")
 st.sidebar.header("Mapping Demo")

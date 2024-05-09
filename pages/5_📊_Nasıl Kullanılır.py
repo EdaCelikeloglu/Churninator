@@ -42,7 +42,7 @@ pd.set_option('display.width', 170)
 pd.set_option('display.max_rows', None)
 pd.set_option('display.float_format', lambda x: '%.3f' % x)
 
-st.set_page_config(page_title="Ham Veri", page_icon="📊", layout="wide")
+st.set_page_config(page_title="Churninator | Ham Veri", page_icon="🤖", layout="wide")
 
 st.markdown("# Ham Veri")
 st.sidebar.header("Ham Veri")
