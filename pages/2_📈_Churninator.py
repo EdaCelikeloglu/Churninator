@@ -19,8 +19,6 @@ from main import process_data
 import warnings
 warnings.simplefilter(action="ignore")
 
-
-
 st.set_page_config(page_title="Churninator | Analiz", page_icon="🤖", layout="wide")
 alt.themes.enable("dark")
 

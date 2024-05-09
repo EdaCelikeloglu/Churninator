@@ -33,6 +33,12 @@ from statsmodels.stats.outliers_influence import variance_inflation_factor
 
 st.set_page_config(page_title="Churninator | Öneriler", page_icon=":robot:")
 
+
+
+
+
+
+
 st.markdown("# Mapping Demo")
 st.sidebar.header("Mapping Demo")
 st.write(
@@ -40,6 +46,7 @@ st.write(
 [`st.pydeck_chart`](https://docs.streamlit.io/develop/api-reference/charts/st.pydeck_chart)
 to display geospatial data."""
 )
+
 
 # Fonksiyonlarımız:
 def grab_col_names(dataframe, cat_th=9, car_th=20):

@@ -44,8 +44,6 @@ import pandas as pd
 
 st.set_page_config(page_title="Churninator | Model", page_icon="🤖", layout="wide")
 
-st.markdown("# Churninator")
-st.sidebar.header("Churninator")
 
 #
 # def grab_col_names(dataframe, cat_th=9, car_th=20):
