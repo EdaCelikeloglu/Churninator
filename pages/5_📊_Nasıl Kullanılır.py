@@ -47,12 +47,44 @@ st.set_page_config(page_title="Churninator | Ham Veri", page_icon="🤖", layout
 
 st.markdown("# Ham Veri")
 st.sidebar.header("Ham Veri")
+
+
+col = st.columns([0.7, 0.3], gap='small')
+
+with col[0]:
+    st.write(
+        """Hangi kredi kartı müşterilerinizin bankanızdan ayrılacağını tahmin edebilirseniz, onlara nasıl daha iyi hizmet sunabileceğinizi öngörebilir ve bu müşterinizin kararlarını olumlu yönde değiştirebilirsiniz.
+    
+    
+    
+    
+    
+    """
+    )
+    st.write("Bu örnek veri setinde 10127 müşteri için yaş, maaş, medeni durum, kredi kartı limiti, kredi kartı kategorisi gibi 21 özellik bulunmaktadır.  ")
+    st.write("Müşterilerin yalnızca %16'sının ayrıldığını görmekteyiz. Ayrılan ve ayrılmayan müşteriler arasındaki bu dengesizlikten dolayı, ayrılacak müşterileri tahmin etmek için modeli eğitme aşamasında birtakım zorluklar baş gösterse de, ***Churninator*** ile bunların üstesinden gelebilirsiniz.   ")
+
+
+with col[1]:
+
+    # Gülen ve Somurtan Yüz Sembolleri
+    smile_image = "Pages/0.png"
+    frown_image = "Pages/11.png"
+    smile_count = 8500
+    frown_count = 1627
+    total_count = smile_count + frown_count
+    total_icons = 100
+    grid_size = 20
+    smile_icons = round(smile_count / total_count * total_icons)
+    frown_icons = total_icons - smile_icons
+    icons = [smile_image] * smile_icons + [frown_image] * frown_icons
+    for row in range(0, total_icons, grid_size):
+        st.image(icons[row:row + grid_size], width=20, caption=None)
+
+st.write("  ")
 st.write(
-    """Hangi kredi kartı müşterilerinizin bankanızdan ayrılacağını tahmin edebilirseniz, onlara nasıl daha iyi hizmet sunabileceğinizi öngörebilir ve bu müşterinizin kararlarını olumlu yönde değiştirebilirsiniz.
+    """
 
-Bu örnek veri setinde 10127 müşteri için yaş, maaş, medeni durum, kredi kartı limiti, kredi kartı kategorisi gibi 21 özellik bulunmaktadır.
-
-Müşterilerin yalnızca %16'sının ayrıldığını görmekteyiz. Ayrılan ve ayrılmayan müşteriler arasındaki bu dengesizlikten dolayı, ayrılacak müşterileri tahmin etmek için modeli eğitme aşamasında birtakım zorluklar baş gösterse de, ***Churninator*** ile bunların üstesinden gelebilirsiniz.
 """
 )
 

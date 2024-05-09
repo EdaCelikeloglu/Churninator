@@ -19,21 +19,51 @@ from main import process_data
 import warnings
 warnings.simplefilter(action="ignore")
 
+
+
 st.set_page_config(page_title="Churninator | Analiz", page_icon="🤖", layout="wide")
 alt.themes.enable("dark")
+
+
+theme_settings = {
+    'color_discrete_sequence': px.colors.qualitative.Set1, # Belirli bir renk paleti
+    'template': 'plotly_white', # Arka plan ve ızgara ayarları için şablon
+    'plot_bgcolor': 'rgba(0, 0, 0, 0)',  # Grafik arka planı şeffaf siyah
+    'paper_bgcolor': 'rgba(0, 0, 0, 0)',  # Kağıt arka planı şeffaf siyah
+}
 
 
 with st.sidebar:
     st.title('🤖 Churninator')
 
-st.markdown("# Analiz")
-st.sidebar.header("Analiz")
-st.write("*Yükleniyor*")
+# st.markdown("# Analiz")
+# st.sidebar.header("Analiz")
 
 
-df = pd.read_csv("BankChurners.csv")
-#df = process_data(df)
+@st.cache_data
+def load_data():
+    df = pd.read_csv("BankChurners.csv")
+    return df
 
+# Veri setini yükleme
+df = load_data()
+
+
+def set_transparent_background(plt_object):
+    if isinstance(plt_object, plt.Axes) or isinstance(plt_object, plt.Figure):
+        # For Matplotlib and Seaborn plots
+        plt_object.patch.set_alpha(0)
+        plt_object.tick_params(axis='x', colors='white')
+        plt_object.tick_params(axis='y', colors='white')
+        plt_object.xaxis.label.set_color('white')
+        plt_object.yaxis.label.set_color('white')
+    elif hasattr(plt_object, 'update_layout'):
+        # For Plotly plots
+        plt_object.update_layout(plot_bgcolor='rgba(0,0,0,0)')
+        plt_object.update_layout(xaxis=dict(tickfont=dict(color='white')), yaxis=dict(tickfont=dict(color='white')))
+        plt_object.update_layout(xaxis_title=dict(font=dict(color='white')), yaxis_title=dict(font=dict(color='white')))
+    else:
+        st.error("Unsupported plot type")
 
 
 def grab_col_names(dataframe, cat_th=9, car_th=20):
@@ -66,7 +96,7 @@ def one_hot_encoder(dataframe, categorical_cols, drop_first=True):
 def combine_categories(df, cat_col1, cat_col2, new_col_name):
     df[new_col_name] = df[cat_col1].astype(str) + '_' + df[cat_col2].astype(str)
 
-df = pd.read_csv("BankChurners.csv")
+
 
 df.drop([
     "Naive_Bayes_Classifier_Attrition_Flag_Card_Category_Contacts_Count_12_mon_Dependent_count_Education_Level_Months_Inactive_12_mon_1",
@@ -122,8 +152,6 @@ def grab_outliers(dataframe, col_name, index=False):
 for col in num_cols:
     print(col, grab_outliers(df, col))
 
-# df.shape (10127, 20)
-
 def remove_outliers_from_all_columns(dataframe):
     for col_name in num_cols:
         low, up = outlier_thresholds(dataframe, col_name)  # Aykırı değer sınırlarını hesapla
@@ -134,9 +162,6 @@ def remove_outliers_from_all_columns(dataframe):
     return dataframe
 
 df = remove_outliers_from_all_columns(df)
-# df.shape (10034, 20)
-
-
 
 cat_cols, num_cols, cat_but_car = grab_col_names(df)
 
@@ -289,7 +314,6 @@ df.rename(columns={"Gender_M": "Gender"}, inplace=True)
 cat_cols, num_cols, cat_but_car = grab_col_names(df)
 
 df.isnull().sum()
-# df.shape (10102, 47)
 
 #knn eski
 numeric_columns = df.select_dtypes(include=['float64', 'int64']).columns
@@ -301,14 +325,7 @@ df = pd.concat([df_numeric_imputed, df[categorical_columns]], axis=1)
 df["Education_Level"] = df["Education_Level"].round().astype("Int64")
 df["Income_Category"] = df["Income_Category"].round().astype("Int64")
 
-
-df.isnull().sum()
-# df.shape
 cat_cols, num_cols, cat_but_car = grab_col_names(df)
-
-
-# Gizemin yarattığı ve belki onehot'a girecek kolonlar:
-# 'Year_on_book', "RFM_SCORE", Segment, Cluster, RFMSegment, cluster_no
 
 useless_cols = [col for col in df.columns if df[col].nunique() == 2 and
                 (df[col].value_counts() / len(df) < 0.01).any(axis=None)]
@@ -317,7 +334,6 @@ df.drop(useless_cols, axis=1, inplace=True)
 df.head()
 dff = df.copy()
 df = dff.copy()
-
 
 cat_cols, num_cols, cat_but_car = grab_col_names(df)
 
@@ -332,13 +348,6 @@ cat_cols, num_cols, cat_but_car = grab_col_names(df)
 
 
 #rfm skorları ile segmentasyon oluşturma
-# Total_Trans_Amt = Monetary
-# Total_Trans_Ct = Frequency
-# Days_Inactive_Last_Year  Recency
-
-# Recency: A recent purchase indicates that the customer is active and potentially more receptive to further
-# communication or offers.
-
 seg_map = {
         r'[1-2][1-2]': 'Hibernating',
         r'[1-2][3-4]': 'At Risk',
@@ -349,8 +358,7 @@ seg_map = {
         r'41': 'Promising',
         r'51': 'New Customers',
         r'[4-5][2-3]': 'Potential Loyalists',
-        r'5[4-5]': 'Champions'
-}
+        r'5[4-5]': 'Champions'}
 
 # segment oluşturma (Recency + Frequency)
 df['Segment'] = df['RecencyScore'].astype(str) + df['FrequencyScore'].astype(str)
@@ -363,20 +371,19 @@ df.head(40)
 
 
 
-
-
 #33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333
 #tüm görselleştirme
 
 #####
 # def calculate_churn(dataframe, input_year):
-#   selected_year_data = input_df[input_df['year'] == input_year].reset_index()
-#   previous_year_data = input_df[input_df['year'] == input_year - 1].reset_index()
+#   selected_year_data = dataframe[dataframe['year'] == input_year].reset_index()
+#   previous_year_data = dataframe[dataframe['year'] == input_year - 1].reset_index()
 #   selected_year_data['population_difference'] = selected_year_data.population.sub(previous_year_data.population, fill_value=0)
 #   return pd.concat([selected_year_data.states, selected_year_data.id, selected_year_data.population, selected_year_data.population_difference], axis=1).sort_values(by="population_difference", ascending=False)
 #
 #
 # def make_donut(input_response, input_text, input_color):
+#     input_response = dataframe["Target"]==1.sum()/len
 #     if input_color == 'blue':
 #         chart_color = ['#29b5e8', '#155F7A']
 #     if input_color == 'green':
@@ -385,6 +392,7 @@ df.head(40)
 #         chart_color = ['#F39C12', '#875A12']
 #     if input_color == 'red':
 #         chart_color = ['#E74C3C', '#781F16']
+#
 #
 #     source = pd.DataFrame({
 #         "Topic": ['', input_text],
@@ -425,11 +433,58 @@ df.head(40)
 
 ###### Dashboard kolonları başlangıç
 
-col = st.columns([0.3, 0.7], gap='small')
+col = st.columns([0.5, 0.5], gap='small')
 
 with col[0]:
     st.markdown('#### Gains/Losses')
 
+    # PCA hazırlık
+    df1 = df.copy()
+    df1 = one_hot_encoder(df1, ["Marital_Status",
+                              "Age_&_Marital",
+                              "Gender_&_Age",
+                              "Card_&_Age",
+                              "Gender_&_Frequency",
+                              "Gender_&_Monetary",
+                              'Ct_vs_Amt',
+                              'Dependent_count',
+                              'Total_Relationship_Count',
+                              'Months_Inactive_12_mon',
+                              'Contacts_Count_12_mon'],
+                         drop_first=True)
+
+    cat_cols, num_cols, cat_but_car = grab_col_names(df1)
+
+    scal_cols = ['Customer_Age',
+                 'Months_on_book',
+                 'Credit_Limit',
+                 'Total_Revolving_Bal',
+                 'Avg_Open_To_Buy',
+                 'Total_Trans_Amt',
+                 'Total_Trans_Ct',
+                 'Important_client_score',
+                 'Avg_Trans_Amt']
+
+    rs = RobustScaler()
+    df1[scal_cols] = rs.fit_transform(df1[scal_cols])
+
+    features_scaled = df1.drop(['Segment'], axis=1)
+    # PCA uygulama (3 ana bileşen)
+    pca = PCA(n_components=3)
+    components = pca.fit_transform(features_scaled)
+
+    # PCA sonuçlarını DataFrame'e dönüştürme
+    pca_df = pd.DataFrame(data=components, columns=['PC1', 'PC2', 'PC3'])
+    pca_df['Segment'] = df1['Segment']  # Renklendirme için Segment sütununu ekleme
+
+    # 3D scatter plot oluşturma
+    fig_pca = px.scatter_3d(pca_df, x='PC1', y='PC2', z='PC3', color='Segment',
+                            title="PCA Results (3D) Colored by Segment")
+    fig_pca.update_traces(marker=dict(size=3))
+    fig_pca.update_layout(width=1000, height=800)
+    st.plotly_chart(fig_pca)
+
+    ####
     # Ürün sayısı arttıkça Churn olasılığı azalıyor
     st.write("Ürün sayısı arttıkça Churn olasılığı azalıyor.")
     mean_target_by_relationship = df.groupby("Total_Relationship_Count")["Target"].mean().reset_index()
@@ -444,7 +499,7 @@ with col[0]:
     mean_scores_by_target = df.groupby("Target")["Important_client_score"].mean().reset_index()
     fig = px.bar(mean_scores_by_target, x="Target", y="Important_client_score",
                  labels={"Target": "Hedef", "Important_client_score": "Ortalama Puan"},
-                 title="Targete Göre Important_client_score")
+                 title="Target'a Göre Important Client Score")
     fig.update_layout(height=400, width=400)
     st.plotly_chart(fig)
 
@@ -455,7 +510,7 @@ with col[0]:
     mean_revolving_bal_by_target = df.groupby("Target")["Total_Revolving_Bal"].mean().reset_index()
     fig_utilization = px.bar(mean_utilization_by_target, x="Target", y="Avg_Utilization_Ratio",
                              labels={"Target": "Hedef", "Avg_Utilization_Ratio": "Borç/Kredi Limiti"},
-                             title="Targete Göre Borç/Kredi Limiti",
+                             title="Target'a Göre Borç/Kredi Limiti",
                              color_discrete_sequence=px.colors.qualitative.Pastel)
     fig_utilization.update_layout(height=400, width=400)
     fig_revolving_bal = px.bar(mean_revolving_bal_by_target, x="Target", y="Total_Revolving_Bal",
@@ -508,13 +563,14 @@ with col[1]:
     # Customize x-axis and y-axis labels and ticks
     ax.set_xticks([0, 1, 2, 3, 4, 5, 6, 7])  # Setting the positions of the ticks
     ax.set_xticklabels(['0', '5k', '10k', '15k', '20k', '25k', '30k', '35k'])
-    ax.set_xlabel('Credit Limit (TRY)')
+    ax.set_xlabel('Credit Limit (USD)')
 
     ax.set_yticks([0, 1, 2, 3, 4, 5])  # Setting the positions of the ticks
     ax.set_yticklabels(['0', '500', '1000', '1500', '2000', '2500'])
-    ax.set_ylabel('Total Revolving Balance (TRY)')
+    ax.set_ylabel('Total Revolving Balance (USD)')
 
-    st.pyplot(fig)
+    st.pyplot(set_transparent_background(fig))
+
 
 
 
@@ -599,8 +655,6 @@ with col[1]:
 
 
 
-
-
     # Filtered DataFrames
     filtered_df1 = df[df['Target'] == 1]
     filtered_df0 = df[df['Target'] == 0]
@@ -663,6 +717,7 @@ with col[1]:
         ax.spines['polar'].set_visible(False)
 
     # Streamlit'te göster
+    set_transparent_background(fig)
     st.pyplot(fig)
 
 
@@ -682,7 +737,7 @@ with col[1]:
                             df[df["Target"] == 1]["FrequencyScore"].mean()],
         'Monetary Score': [df[df["Target"] == 0]["MonetaryScore"].mean(),
                            df[df["Target"] == 1]["MonetaryScore"].mean()],
-        '6 - Contact Count': [6 - (df[df["Target"] == 0]["Contacts_Count_12_mon"].mean()),
+        '(6 - Contact Count)': [6 - (df[df["Target"] == 0]["Contacts_Count_12_mon"].mean()),
                               6 - (df[df["Target"] == 1]["Contacts_Count_12_mon"].mean())],
     })
     # todo burada düz contact_count değil 6-contact count aldım. Bu şekilde, "Grafikte çıkan şekilde hacim büyüdükçe churn azalıyor" diyebiliriz. Ama bunu bir konuşalım.
@@ -731,67 +786,10 @@ with col[1]:
     plt.legend(loc='upper right', bbox_to_anchor=(0.1, 0.1))
 
     # Show the graph
+    set_transparent_background(fig)
     st.pyplot(fig)
 
-    # Gülen ve Somurtan Yüz Sembolleri
-    smile_image = "Pages/0.png"
-    frown_image = "Pages/11.png"
-    smile_count = 8500
-    frown_count = 1627
-    total_count = smile_count + frown_count
-    total_icons = 100
-    grid_size = 20
-    smile_icons = round(smile_count / total_count * total_icons)
-    frown_icons = total_icons - smile_icons
-    icons = [smile_image] * smile_icons + [frown_image] * frown_icons
-    for row in range(0, total_icons, grid_size):
-        st.image(icons[row:row + grid_size], width=20, caption=None)
 
-    # PCA hazırlık
-    df.head()
-    df = one_hot_encoder(df, ["Marital_Status",
-                              "Age_&_Marital",
-                              "Gender_&_Age",
-                              "Card_&_Age",
-                              "Gender_&_Frequency",
-                              "Gender_&_Monetary",
-                              'Ct_vs_Amt',
-                              'Dependent_count',
-                              'Total_Relationship_Count',
-                              'Months_Inactive_12_mon',
-                              'Contacts_Count_12_mon'],
-                         drop_first=True)
-
-    cat_cols, num_cols, cat_but_car = grab_col_names(df)
-
-    scal_cols = ['Customer_Age',
-                 'Months_on_book',
-                 'Credit_Limit',
-                 'Total_Revolving_Bal',
-                 'Avg_Open_To_Buy',
-                 'Total_Trans_Amt',
-                 'Total_Trans_Ct',
-                 'Important_client_score',
-                 'Avg_Trans_Amt', ]
-
-    rs = RobustScaler()
-    df[scal_cols] = rs.fit_transform(df[scal_cols])
-
-    features_scaled = df.drop(['Segment'], axis=1)
-    # PCA uygulama (3 ana bileşen)
-    pca = PCA(n_components=3)
-    components = pca.fit_transform(features_scaled)
-
-    # PCA sonuçlarını DataFrame'e dönüştürme
-    pca_df = pd.DataFrame(data=components, columns=['PC1', 'PC2', 'PC3'])
-    pca_df['Segment'] = df['Segment']  # Renklendirme için Segment sütununu ekleme
-
-    # 3D scatter plot oluşturma
-    fig_pca = px.scatter_3d(pca_df, x='PC1', y='PC2', z='PC3', color='Segment',
-                            title="PCA Results (3D) Colored by Segment")
-    fig_pca.update_traces(marker=dict(size=3))
-    fig_pca.update_layout(width=1000, height=800)
-    st.plotly_chart(fig_pca)
 
     # personlar için grafik?
     # persona = ["May_marry", "Credit_builder_criteria", "Family_criteria"]
@@ -843,8 +841,13 @@ with col[1]:
 
 
 
+
     persona = ["May_marry", "Credit_builder_criteria", "Family_criteria"]
 
+    grid = [st.columns(3) for _ in range(3)]
+    current_column = 0
+    row = 0
+    
     # Her bir feature için Target yüzdesini hesaplama ve grafik oluşturma
     for feature in persona:
         if feature in df.columns:
@@ -877,17 +880,23 @@ with col[1]:
                         'thickness': 0.75,
                         'value': percentage}}))
 
+            fig.update_layout(
+                width=50,  # Genişlik
+                height=200,  # Yükseklik
+                margin=dict(l=10, r=10, t=10, b=10),  # Kenar boşlukları
+                showlegend=False  # Açıklama gösterme
+            )
+
             # Streamlit'te grafikleri göster
             st.plotly_chart(fig, use_container_width=True)
 
-    st.markdown("""
-        <style>
-            [data-testid="column"]:nth-child(2){
-                background-color: lightgrey;
-            }
-        </style>
-        """, unsafe_allow_html=True
-    )
+            current_column += 1
+            if current_column > 2:
+                current_column = 0
+                row += 1
+    import plotly.graph_objects as go
+
+
 
 
 # # Yeni gelen müşteriler risk mi?
@@ -897,7 +906,6 @@ with col[1]:
 #              labels={"Months_Inactive_12_mon": "İnaktif Ay Sayısı", "Target": "Target"},
 #              title="İnaktif Ay Sayısına Göre Target", color_discrete_sequence=px.colors.qualitative.Pastel)
 # st.plotly_chart(fig)
-
 
 
 
