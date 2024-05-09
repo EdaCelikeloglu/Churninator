@@ -41,10 +41,6 @@ import warnings
 warnings.simplefilter(action="ignore")
 import pandas as pd
 
-pd.set_option('display.max_columns', None)
-pd.set_option('display.width', 170)
-pd.set_option('display.max_rows', None)
-pd.set_option('display.float_format', lambda x: '%.3f' % x)
 
 st.set_page_config(page_title="Model Demo", page_icon="💳", layout="wide")
 
@@ -438,9 +434,37 @@ df["cluster_no"] = kmeans.labels_
 df["cluster_no"] = df["cluster_no"] + 1
 
 df.groupby("cluster_no")["Segment"].value_counts()
+# cluster_no  Segment
+# 1           Potential Loyalists     748 4
+#             Promising               693
+#             New Customers           424
+# 2           Potential Loyalists    1321
+#             Loyal Customers         849  7
+#             Champions               609
+#             Promising                 2
+# 3           Loyal Customers         366  5
+#             Champions               136
+#             Need Attention           64
+#             Potential Loyalists      59
+#             About to Sleep           16
+#             At Risk                   4
+#             Hibernating               1
+# 4           Loyal Customers         510  6
+#             Champions               204
+#             Can't Lose               31
+# 5           At Risk                 302  1
+#             Hibernating             160
+#             Can't Lose               85
+# 6           About to Sleep         1471  2
+#             Hibernating             146
+#             Need Attention           37
+# 7           Loyal Customers         915 3
+#             Need Attention          680
+#             About to Sleep          174
 
+df['cluster_no'] = df['cluster_no'].replace({1: 4, 2: 7, 3: 5, 4: 6, 5: 1, 6: 2, 7: 3})
 
-
+print(df)
 
 cat_cols, num_cols, cat_but_car = grab_col_names(df)
 
@@ -487,26 +511,16 @@ X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_
 
 # summarize class distribution
 counter = Counter(y)
-print(counter) # {0: 8489, 1: 1613} eda: ({0: 8397, 1: 1610})
+print(counter) # {0: 8397, 1: 1610}
 # define the undersampling method
 undersample = TomekLinks()
 # transform the dataset
 X, y = undersample.fit_resample(X, y)
 # summarize the new class distribution
 counter = Counter(y)
-print(counter) # {0: 8347, 1: 1613} eda: ({0: 8247, 1: 1610})
+print(counter) # {0: 8254, 1: 1610}
 
-#
-#
-# from imblearn.under_sampling import RandomUnderSampler
-# # summarize class distribution
-# print(Counter(y)) # {0: 8489, 1: 1613}
-# # define undersample strategy
-# undersample = RandomUnderSampler(sampling_strategy='majority')
-# # fit and apply the transform
-# X_over, y_over = undersample.fit_resample(X, y)
-# # summarize class distribution
-# print(Counter(y_over)) # {0: 1613, 1: 1613}
+
 
 def model_metrics(X_train, y_train, X_test, y_test):
     print("Base Models....")
@@ -534,85 +548,86 @@ def model_metrics(X_train, y_train, X_test, y_test):
 model_metrics(X_train, y_train, X_test, y_test)
 
 
-# Model:
-
-#
 # Base Models....
 # Classification Report for LR:
 #               precision    recall  f1-score   support
-#            0       0.95      0.97      0.96      1705
-#            1       0.84      0.72      0.78       316
-#     accuracy                           0.94      2021
-#    macro avg       0.90      0.85      0.87      2021
-# weighted avg       0.93      0.94      0.93      2021
+#            0       0.96      0.97      0.96      1694
+#            1       0.82      0.78      0.80       308
+#     accuracy                           0.94      2002
+#    macro avg       0.89      0.88      0.88      2002
+# weighted avg       0.94      0.94      0.94      2002
 # Classification Report for KNN:
 #               precision    recall  f1-score   support
-#            0       0.94      0.97      0.96      1705
-#            1       0.83      0.65      0.73       316
-#     accuracy                           0.92      2021
-#    macro avg       0.88      0.81      0.84      2021
-# weighted avg       0.92      0.92      0.92      2021
+#            0       0.95      0.98      0.96      1694
+#            1       0.85      0.69      0.76       308
+#     accuracy                           0.93      2002
+#    macro avg       0.90      0.84      0.86      2002
+# weighted avg       0.93      0.93      0.93      2002
 # Classification Report for SVC:
 #               precision    recall  f1-score   support
-#            0       0.95      0.98      0.97      1705
-#            1       0.87      0.73      0.79       316
-#     accuracy                           0.94      2021
-#    macro avg       0.91      0.85      0.88      2021
-# weighted avg       0.94      0.94      0.94      2021
+#            0       0.95      0.98      0.97      1694
+#            1       0.86      0.73      0.79       308
+#     accuracy                           0.94      2002
+#    macro avg       0.91      0.85      0.88      2002
+# weighted avg       0.94      0.94      0.94      2002
 # Classification Report for CART:
 #               precision    recall  f1-score   support
-#            0       0.95      0.96      0.96      1705
-#            1       0.77      0.76      0.76       316
-#     accuracy                           0.93      2021
-#    macro avg       0.86      0.86      0.86      2021
-# weighted avg       0.93      0.93      0.93      2021
+#            0       0.97      0.95      0.96      1694
+#            1       0.75      0.84      0.80       308
+#     accuracy                           0.93      2002
+#    macro avg       0.86      0.90      0.88      2002
+# weighted avg       0.94      0.93      0.93      2002
 # Classification Report for RF:
 #               precision    recall  f1-score   support
-#            0       0.96      0.99      0.97      1705
-#            1       0.92      0.76      0.83       316
-#     accuracy                           0.95      2021
-#    macro avg       0.94      0.87      0.90      2021
-# weighted avg       0.95      0.95      0.95      2021
+#            0       0.97      0.99      0.98      1694
+#            1       0.93      0.81      0.86       308
+#     accuracy                           0.96      2002
+#    macro avg       0.95      0.90      0.92      2002
+# weighted avg       0.96      0.96      0.96      2002
 # Classification Report for Adaboost:
 #               precision    recall  f1-score   support
-#            0       0.96      0.98      0.97      1705
-#            1       0.88      0.80      0.84       316
-#     accuracy                           0.95      2021
-#    macro avg       0.92      0.89      0.91      2021
-# weighted avg       0.95      0.95      0.95      2021
+#            0       0.97      0.98      0.97      1694
+#            1       0.86      0.82      0.84       308
+#     accuracy                           0.95      2002
+#    macro avg       0.91      0.90      0.91      2002
+# weighted avg       0.95      0.95      0.95      2002
 # Classification Report for GBM:
 #               precision    recall  f1-score   support
-#            0       0.96      0.99      0.98      1705
-#            1       0.93      0.79      0.86       316
-#     accuracy                           0.96      2021
-#    macro avg       0.95      0.89      0.92      2021
-# weighted avg       0.96      0.96      0.96      2021
+#            0       0.97      0.99      0.98      1694
+#            1       0.93      0.83      0.88       308
+#     accuracy                           0.97      2002
+#    macro avg       0.95      0.91      0.93      2002
+# weighted avg       0.96      0.97      0.96      2002
 # Classification Report for XGBoost:
 #               precision    recall  f1-score   support
-#            0       0.97      0.99      0.98      1705
-#            1       0.94      0.84      0.89       316
-#     accuracy                           0.97      2021
-#    macro avg       0.96      0.92      0.94      2021
-# weighted avg       0.97      0.97      0.97      2021
-# [LightGBM] [Info] Number of positive: 1297, number of negative: 6784
-# [LightGBM] [Info] Total Bins 2292
-# [LightGBM] [Info] Number of data points in the train set: 8081, number of used features: 94
-# [LightGBM] [Info] [binary:BoostFromScore]: pavg=0.160500 -> initscore=-1.654513
-# [LightGBM] [Info] Start training from score -1.654513
+#            0       0.98      0.98      0.98      1694
+#            1       0.91      0.89      0.90       308
+#     accuracy                           0.97      2002
+#    macro avg       0.95      0.94      0.94      2002
+# weighted avg       0.97      0.97      0.97      2002
+# [LightGBM] [Info] Number of positive: 1302, number of negative: 6703
+# [LightGBM] [Info] Auto-choosing row-wise multi-threading, the overhead of testing was 0.002116 seconds.
+# You can set `force_row_wise=true` to remove the overhead.
+# And if memory is not enough, you can set `force_col_wise=true`.
+# [LightGBM] [Info] Total Bins 2295
+# [LightGBM] [Info] Number of data points in the train set: 8005, number of used features: 94
+# [LightGBM] [Info] [binary:BoostFromScore]: pavg=0.162648 -> initscore=-1.638654
+# [LightGBM] [Info] Start training from score -1.638654
 # Classification Report for LightGBM:
 #               precision    recall  f1-score   support
-#            0       0.97      0.99      0.98      1705
-#            1       0.95      0.84      0.89       316
-#     accuracy                           0.97      2021
-#    macro avg       0.96      0.91      0.93      2021
-# weighted avg       0.97      0.97      0.97      2021
+#            0       0.98      0.99      0.98      1694
+#            1       0.92      0.91      0.91       308
+#     accuracy                           0.97      2002
+#    macro avg       0.95      0.95      0.95      2002
+# weighted avg       0.97      0.97      0.97      2002
 # Classification Report for CatBoost:
 #               precision    recall  f1-score   support
-#            0       0.97      0.99      0.98      1705
-#            1       0.95      0.83      0.89       316
-#     accuracy                           0.97      2021
-#    macro avg       0.96      0.91      0.93      2021
-# weighted avg       0.97      0.97      0.97      2021
+#            0       0.98      0.99      0.98      1694
+#            1       0.92      0.90      0.91       308
+#     accuracy                           0.97      2002
+#    macro avg       0.95      0.94      0.95      2002
+# weighted avg       0.97      0.97      0.97      2002
+
 
 
 ################################################################################
@@ -678,7 +693,7 @@ logistic_params = {
 #                   "max_depth": [3, 5, 7, 10],
 #                   "n_estimators": [50, 100, 200, 300],
 #                   "colsample_bytree": [0.7, 1]}
-#
+# #
 # xgboost_params = {
 #     "learning_rate": [0.005, 0.01, 0.05, 0.1, 0.2],  # Geniş aralık, farklı öğrenme hızlarını keşfetmek için
 #     "max_depth": [3, 5, 7, 10, 12],                  # Hem düşük hem de yüksek derinlikler dahil
@@ -687,21 +702,76 @@ logistic_params = {
 #     "subsample": [0.6, 0.7, 0.8, 0.9, 1]             # Örnek alt küme oranları, çeşitliliği artırmak için
 # }
 
+logistic_params = {
+    'penalty': ['l1', 'l2'],
+    'C': [0.1, 1, 10],
+    'solver': ['liblinear', 'saga', 'lbfgs'],
+    'max_iter': [100, 200, 300],
+    'class_weight': [None, 'balanced']
+}
+
+# https://www.geeksforgeeks.org/svm-hyperparameter-tuning-using-gridsearchcv-ml/
+svc_params = {'C': [0.1, 1, 10, 100, 1000],
+              'gamma': [1, 0.1, 0.01, 0.001, 0.0001, "scale"],
+              'kernel': ['rbf']}
+
+adaboost_params = {
+    'n_estimators': [50, 100, 200],
+    'learning_rate': [0.01, 0.05, 0.1, 0.5, 1],
+    'algorithm': ['SAMME', 'SAMME.R']
+}
+
+knn_params = {"n_neighbors": range(2, 25),
+              'weights': ['uniform', 'distance'],
+              'algorithm': ['auto', 'ball_tree', 'kd_tree', 'brute'],
+              'p': [1, 2]
+}
+
+
+cart_params = {'max_depth': range(1, 20),
+               "min_samples_split": range(2, 30)}
+
+gbm_params = {"learning_rate": [0.01, 0.1],
+              "max_depth": [3, 8, 10],
+              "n_estimators": [100, 500, 1000],
+              "subsample": [1, 0.5, 0.7]}
+
+rf_params = {"max_depth": [5, 8, None],
+             "max_features": [3, 5, 7, "auto"],
+             "min_samples_split": [2, 5, 8, 15, 20],
+             "n_estimators": [100, 200, 500]}
+
+xgboost_params = {"learning_rate": [0.01, 0.05, 0.1, 0.5],
+                  "max_depth": [3, 5, 7, 10],
+                  "n_estimators": [50, 100, 200, 300],
+                  "colsample_bytree": [0.7, 1]}
+
+
+lightgbm_params = {"learning_rate": [0.01, 0.05, 0.1, 0.5],
+                   "n_estimators": [50, 100, 200, 300],
+                   "max_depth": [-1, 3, 5, 7, 10],
+                   "colsample_bytree": [0.5, 0.7, 1]}
+
+catboost_params = {"learning_rate": [0.01, 0.05, 0.1, 0.5],
+                   "depth": [3, 5, 6, 7, 10],
+                   "iterations": [50, 100, 200, 300],
+                   "subsample": [0.5, 0.75, 1.0],
+                   "depth": [3, 6]}
 
 
 
 
 ##############################################################################
-classifiers = [#('Adaboost', AdaBoostClassifier(), adaboost_params),
-    #('KNN', KNeighborsClassifier(), knn_params),
-    #("CART", DecisionTreeClassifier(), cart_params),
-    #("RF", RandomForestClassifier(), rf_params),
-    #("LogisticRegression", LogisticRegression(), logistic_params),  # Lojistik Regresyon
-    #("SVC", SVC(), svc_params),  # Destek Vektör Makineleri
-    #("GBM", GradientBoostingClassifier(), gbm_params),  # Gradyan Arttırma Makineleri
+classifiers = [('Adaboost', AdaBoostClassifier(), adaboost_params),
+    ('KNN', KNeighborsClassifier(), knn_params),
+    ("CART", DecisionTreeClassifier(), cart_params),
+    ("RF", RandomForestClassifier(), rf_params),
+    ("LogisticRegression", LogisticRegression(), logistic_params),  # Lojistik Regresyon
+    ("SVC", SVC(), svc_params),  # Destek Vektör Makineleri
+    ("GBM", GradientBoostingClassifier(), gbm_params),  # Gradyan Arttırma Makineleri
     ('XGBoost', XGBClassifier(use_label_encoder=False, eval_metric='logloss'), xgboost_params),
-    #('LightGBM', LGBMClassifier(force_col_wise=True), lightgbm_params),
-    #('CatBoost', CatBoostClassifier(verbose=False), catboost_params)
+    ('LightGBM', LGBMClassifier(force_col_wise=True), lightgbm_params),
+    ('CatBoost', CatBoostClassifier(verbose=False), catboost_params)
 ]
 
 
@@ -733,122 +803,114 @@ def hyperparameter_optimization(X_train, y_train, X_test, y_test, cv=5, scoring=
 model, best_params = hyperparameter_optimization(X_train, y_train, X_test, y_test)
 # Hyperparameter Optimization....
 # ########## Adaboost ##########
-# roc_auc (Before): 0.9839
-# roc_auc (After): 0.9851
-# Adaboost best params: {'algorithm': 'SAMME.R', 'learning_rate': 0.5, 'n_estimators': 200}
+# recall (Before): 0.8418
+# recall (After): 0.831
+# Adaboost best params: {'algorithm': 'SAMME.R', 'learning_rate': 0.5, 'n_estimators': 100}
 # Adaboost classification report:
 #               precision    recall  f1-score   support
-#            0       0.97      0.98      0.98      1705
-#            1       0.91      0.82      0.86       316
-#     accuracy                           0.96      2021
-#    macro avg       0.94      0.90      0.92      2021
-# weighted avg       0.96      0.96      0.96      2021
-
+#            0       0.97      0.98      0.97      1694
+#            1       0.87      0.82      0.85       308
+#     accuracy                           0.95      2002
+#    macro avg       0.92      0.90      0.91      2002
+# weighted avg       0.95      0.95      0.95      2002
 # ########## KNN ##########
-# roc_auc (Before): 0.9393
-# roc_auc (After): 0.9537
-# KNN best params: {'algorithm': 'auto', 'n_neighbors': 8, 'p': 1, 'weights': 'distance'}
+# recall (Before): 0.6605
+# recall (After): 0.682
+# KNN best params: {'algorithm': 'auto', 'n_neighbors': 10, 'p': 1, 'weights': 'distance'}
 # KNN classification report:
 #               precision    recall  f1-score   support
-#            0       0.94      0.98      0.96      1705
-#            1       0.85      0.66      0.74       316
-#     accuracy                           0.93      2021
-#    macro avg       0.89      0.82      0.85      2021
-# weighted avg       0.93      0.93      0.92      2021
+#            0       0.94      0.97      0.96      1694
+#            1       0.81      0.67      0.74       308
+#     accuracy                           0.93      2002
+#    macro avg       0.88      0.82      0.85      2002
+# weighted avg       0.92      0.93      0.92      2002
 # ########## CART ##########
-# roc_auc (Before): 0.8726
-# roc_auc (After): 0.9197
-# CART best params: {'max_depth': 8, 'min_samples_split': 10}
+# recall (Before): 0.811
+# recall (After): 0.7949
+# CART best params: {'max_depth': 10, 'min_samples_split': 10}
 # CART classification report:
 #               precision    recall  f1-score   support
-#            0       0.95      0.97      0.96      1705
-#            1       0.83      0.74      0.78       316
-#     accuracy                           0.94      2021
-#    macro avg       0.89      0.86      0.87      2021
-# weighted avg       0.93      0.94      0.93      2021
-
+#            0       0.97      0.96      0.96      1694
+#            1       0.80      0.82      0.81       308
+#     accuracy                           0.94      2002
+#    macro avg       0.88      0.89      0.89      2002
+# weighted avg       0.94      0.94      0.94      2002
 # ########## RF ##########
-# roc_auc (Before): 0.9874
-# roc_auc (After): 0.9875
-# RF best params: {'max_depth': None, 'max_features': 'auto', 'min_samples_split': 2, 'n_estimators': 200}
+# recall (Before): 0.7888
+# recall (After): 0.798
+# RF best params: {'max_depth': None, 'max_features': 'sqrt', 'min_samples_split': 2, 'n_estimators': 200}
 # RF classification report:
 #               precision    recall  f1-score   support
-#            0       0.96      0.99      0.97      1705
-#            1       0.92      0.76      0.83       316
-#     accuracy                           0.95      2021
-#    macro avg       0.94      0.87      0.90      2021
-# weighted avg       0.95      0.95      0.95      2021
-# ########## LogisticRegression ##########
-# roc_auc (Before): 0.9744
-# roc_auc (After): 0.9743
-# LogisticRegression best params: {'C': 1, 'class_weight': None, 'max_iter': 100, 'penalty': 'l2', 'solver': 'saga'}
+#            0       0.97      0.99      0.98      1694
+#            1       0.93      0.83      0.88       308
+#     accuracy                           0.97      2002
+#    macro avg       0.95      0.91      0.93      2002
+# weighted avg       0.96      0.97      0.96      2002
+
+########## LogisticRegression ##########
+# recall (Before): 0.7765
+# recall (After): 0.7757
+# LogisticRegression best params: {'C': 1, 'class_weight': None, 'max_iter': 200, 'penalty': 'l2', 'solver': 'lbfgs'}
 # LogisticRegression classification report:
 #               precision    recall  f1-score   support
-#            0       0.95      0.97      0.96      1705
-#            1       0.84      0.72      0.78       316
-#     accuracy                           0.94      2021
-#    macro avg       0.90      0.85      0.87      2021
-# weighted avg       0.93      0.94      0.93      2021
-
+#            0       0.96      0.97      0.96      1694
+#            1       0.82      0.78      0.80       308
+#     accuracy                           0.94      2002
+#    macro avg       0.89      0.88      0.88      2002
+# weighted avg       0.94      0.94      0.94      2002
 # ########## SVC ##########
-# roc_auc (Before): 0.9787
-# roc_auc (After): 0.983
+# recall (Before): 0.745
+# recall (After): 0.8134
 # SVC best params: {'C': 10, 'gamma': 'scale', 'kernel': 'rbf'}
 # SVC classification report:
 #               precision    recall  f1-score   support
-#            0       0.96      0.97      0.97      1705
-#            1       0.85      0.78      0.82       316
-#     accuracy                           0.94      2021
-#    macro avg       0.90      0.88      0.89      2021
-# weighted avg       0.94      0.94      0.94      2021
+#            0       0.97      0.98      0.97      1694
+#            1       0.86      0.82      0.84       308
+#     accuracy                           0.95      2002
+#    macro avg       0.92      0.90      0.91      2002
+# weighted avg       0.95      0.95      0.95      2002
 # ########## GBM ##########
-# roc_auc (Before): 0.9881
-
-########## GBM ##########
-# roc_auc (Before): 0.9881
-# roc_auc (After): 0.9926
-# GBM best params: {'learning_rate': 0.1, 'max_depth': 8, 'n_estimators': 1000, 'subsample': 0.5}
+# recall (Before): 0.8433
+# recall (After): 0.8725
+# GBM best params: {'learning_rate': 0.1, 'max_depth': 8, 'n_estimators': 200, 'subsample': 0.7}
 # GBM classification report:
 #               precision    recall  f1-score   support
-#            0       0.97      0.99      0.98      1705
-#            1       0.95      0.81      0.88       316
-#     accuracy                           0.96      2021
-#    macro avg       0.96      0.90      0.93      2021
-# weighted avg       0.96      0.96      0.96      2021
-
+#            0       0.98      0.99      0.99      1694
+#            1       0.94      0.90      0.92       308
+#     accuracy                           0.97      2002
+#    macro avg       0.96      0.94      0.95      2002
+# weighted avg       0.97      0.97      0.97      2002
 # ########## XGBoost ##########
-# roc_auc (Before): 0.9916
-# roc_auc (After): 0.9925
-# XGBoost best params: {'colsample_bytree': 0.7, 'learning_rate': 0.1, 'max_depth': 5, 'n_estimators': 300}
+# recall (Before): 0.8817
+# recall (After): 0.8825
+# XGBoost best params: {'colsample_bytree': 0.7, 'learning_rate': 0.1, 'max_depth': 7, 'n_estimators': 200}
 # XGBoost classification report:
 #               precision    recall  f1-score   support
-#            0       0.97      0.99      0.98      1705
-#            1       0.94      0.85      0.90       316
-#     accuracy                           0.97      2021
-#    macro avg       0.96      0.92      0.94      2021
-# weighted avg       0.97      0.97      0.97      2021
+#            0       0.98      0.99      0.98      1694
+#            1       0.92      0.91      0.91       308
+#     accuracy                           0.97      2002
+#    macro avg       0.95      0.95      0.95      2002
+# weighted avg       0.97      0.97      0.97      2002
 
-
+# ########## LightGBM ##########
 # LightGBM classification report:
 #               precision    recall  f1-score   support
-#            0       0.97      0.99      0.98      1705
-#            1       0.94      0.83      0.88       316
-#     accuracy                           0.96      2021
-#    macro avg       0.95      0.91      0.93      2021
-# weighted avg       0.96      0.96      0.96      2021
-
+#            0       0.98      0.99      0.99      1694
+#            1       0.94      0.89      0.92       308
+#     accuracy                           0.97      2002
+#    macro avg       0.96      0.94      0.95      2002
+# weighted avg       0.97      0.97      0.97      2002
 # ########## CatBoost ##########
-# roc_auc (Before): 0.9935
-# roc_auc (After): 0.9928
-# CatBoost best params: {'depth': 6, 'iterations': 300, 'learning_rate': 0.1, 'subsample': 1.0}
+# recall (Before): 0.8817
+# recall (After): 0.8833
+# CatBoost best params: {'depth': 6, 'iterations': 200, 'learning_rate': 0.1, 'subsample': 0.75}
 # CatBoost classification report:
 #               precision    recall  f1-score   support
-#            0       0.97      0.99      0.98      1705
-#            1       0.96      0.83      0.89       316
-#     accuracy                           0.97      2021
-#    macro avg       0.96      0.91      0.93      2021
-# weighted avg       0.97      0.97      0.97      2021
-
+#            0       0.98      0.99      0.98      1694
+#            1       0.92      0.88      0.90       308
+#     accuracy                           0.97      2002
+#    macro avg       0.95      0.93      0.94      2002
+# weighted avg       0.97      0.97      0.97      2002
 
 # XCBoost Final modelini oluşturun
 final_model = XGBClassifier(colsample_bytree=0.7, learning_rate=0.1, max_depth=7, n_estimators=200)
