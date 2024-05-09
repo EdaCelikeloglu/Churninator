@@ -912,8 +912,9 @@ model, best_params = hyperparameter_optimization(X_train, y_train, X_test, y_tes
 #    macro avg       0.95      0.93      0.94      2002
 # weighted avg       0.97      0.97      0.97      2002
 
-# GBM modelini oluşturun
-final_model = GradientBoostingClassifier(learning_rate = 0.1, max_depth= 3, n_estimators= 1000, subsample= 0.7)
+
+# XCBoost Final modelini oluşturun
+final_model = XGBClassifier(colsample_bytree=0.7, learning_rate=0.1, max_depth=7, n_estimators=200)
 
 # Modeli eğitin
 final_model.fit(X_train, y_train)
@@ -966,67 +967,159 @@ report = classification_report(y_test, y_pred, target_names=['Negatif', 'Pozitif
 print(report)
 
 
-import matplotlib.pyplot as plt
-from sklearn.metrics import precision_recall_curve, average_precision_score
 
-
-
-################################
-# Analyzing Model Complexity with Learning Curves (BONUS)
-################################
-
-def val_curve_params(model, X, y, param_name, param_range, scoring="roc_auc", cv=10):
-    train_score, test_score = validation_curve(
-        model, X=X, y=y, param_name=param_name, param_range=param_range, scoring=scoring, cv=cv)
-
-    mean_train_score = np.mean(train_score, axis=1)
-    mean_test_score = np.mean(test_score, axis=1)
-
-    plt.plot(param_range, mean_train_score,
-             label="Training Score", color='b')
-
-    plt.plot(param_range, mean_test_score,
-             label="Validation Score", color='g')
-
-    plt.title(f"Validation Curve for {type(model).__name__}")
-    plt.xlabel(f"Number of {param_name}")
-    plt.ylabel(f"{scoring}")
-    plt.tight_layout()
-    plt.legend(loc='best')
-    plt.show(block=True)
-
-
-final_model = GradientBoostingClassifier(learning_rate = 0.1, max_depth= 3, n_estimators= 1000, subsample= 0.7)
-
-
-for param_name, param_range in gbm_params.items():
-    val_curve_params(final_model, X, y, param_name, param_range)
-
-
-
-
-################################
-# Feature Importance
-################################
-def plot_importance(model, features, num=len(X), save=False):
-    feature_imp = pd.DataFrame({'Value': model.feature_importances_, 'Feature': features.columns})
-    plt.figure(figsize=(10, 10))
-    sns.set(font_scale=1)
-    sns.barplot(x="Value", y="Feature", data=feature_imp.sort_values(by="Value",
-                                                                     ascending=False)[0:num])
-    plt.title('Features')
-    plt.tight_layout()
-    plt.show()
-    if save:
-        plt.savefig('importances.png')
-
-plot_importance(final_model, X)
-
-
-#top 15
-plot_importance(final_model, X, num=15)
-
-# # GBM
+#
+# # GBM modelini oluşturun
+# final_model = GradientBoostingClassifier(learning_rate = 0.1, max_depth= 3, n_estimators= 1000, subsample= 0.7)
+#
+# # Modeli eğitin
+# final_model.fit(X_train, y_train)
+#
+# # Train verisi için tahmin olasılıklarını alın
+# train_proba = final_model.predict_proba(X_train)[:, 1]
+#
+# # Test verisi için tahmin olasılıklarını alın
+# test_proba = final_model.predict_proba(X_test)[:, 1]
+#
+# # Train verisi için ROC eğrisini hesaplayın
+# train_fpr, train_tpr, _ = roc_curve(y_train, train_proba)
+# train_auc = auc(train_fpr, train_tpr)
+#
+# # Test verisi için ROC eğrisini hesaplayın
+# test_fpr, test_tpr, _ = roc_curve(y_test, test_proba)
+# test_auc = auc(test_fpr, test_tpr)
+#
+# # Eğitim ve test ROC eğrilerini çiz
+# plt.figure(figsize=(8, 6))
+# plt.plot(train_fpr, train_tpr, color='blue', lw=2, label=f'Eğitim ROC (AUC = {train_auc:.2f})')
+# plt.plot(test_fpr, test_tpr, color='green', lw=2, label=f'Test ROC (AUC = {test_auc:.2f})')
+# plt.plot([0, 1], [0, 1], color='grey', lw=2, linestyle='--')
+# plt.xlim([0.0, 1.0])
+# plt.ylim([0.0, 1.05])
+# plt.xlabel('Yanlış Pozitif Oranı (FPR)')
+# plt.ylabel('Doğru Pozitif Oranı (TPR)')
+# plt.title('Eğitim ve Test ROC Eğrileri')
+# plt.legend(loc="lower right")
+# plt.grid(True)
+# plt.show()
+#
+# #presicion-recall eğrisi:
+#
+#
+# precision, recall, _ = precision_recall_curve(y_test, test_proba)
+#
+# # Precision-Recall eğrisini çiz
+# plt.figure(figsize=(8, 6))
+# plt.plot(recall, precision, color='blue', lw=2)
+# plt.xlabel('Recall')
+# plt.ylabel('Precision')
+# plt.title('Precision-Recall Eğrisi')
+# plt.grid(True)
+# plt.show()
+#
+# # Detaylı sınıflandırma raporunu alın
+# y_pred = final_model.predict(X_test)
+# report = classification_report(y_test, y_pred, target_names=['Negatif', 'Pozitif'])
+# print(report)
+#
+#
+# import matplotlib.pyplot as plt
+# from sklearn.metrics import precision_recall_curve, average_precision_score
+#
+#
+#
+# ################################
+# # Analyzing Model Complexity with Learning Curves (BONUS)
+# ################################
+#
+# def val_curve_params(model, X, y, param_name, param_range, scoring="roc_auc", cv=10):
+#     train_score, test_score = validation_curve(
+#         model, X=X, y=y, param_name=param_name, param_range=param_range, scoring=scoring, cv=cv)
+#
+#     mean_train_score = np.mean(train_score, axis=1)
+#     mean_test_score = np.mean(test_score, axis=1)
+#
+#     plt.plot(param_range, mean_train_score,
+#              label="Training Score", color='b')
+#
+#     plt.plot(param_range, mean_test_score,
+#              label="Validation Score", color='g')
+#
+#     plt.title(f"Validation Curve for {type(model).__name__}")
+#     plt.xlabel(f"Number of {param_name}")
+#     plt.ylabel(f"{scoring}")
+#     plt.tight_layout()
+#     plt.legend(loc='best')
+#     plt.show(block=True)
+#
+#
+# final_model = GradientBoostingClassifier(learning_rate = 0.1, max_depth= 3, n_estimators= 1000, subsample= 0.7)
+#
+#
+# for param_name, param_range in gbm_params.items():
+#     val_curve_params(final_model, X, y, param_name, param_range)
+#
+#
+#
+#
+# ################################
+# # Feature Importance
+# ################################
+# def plot_importance(model, features, num=len(X), save=False):
+#     feature_imp = pd.DataFrame({'Value': model.feature_importances_, 'Feature': features.columns})
+#     plt.figure(figsize=(10, 10))
+#     sns.set(font_scale=1)
+#     sns.barplot(x="Value", y="Feature", data=feature_imp.sort_values(by="Value",
+#                                                                      ascending=False)[0:num])
+#     plt.title('Features')
+#     plt.tight_layout()
+#     plt.show()
+#     if save:
+#         plt.savefig('importances.png')
+#
+# plot_importance(final_model, X)
+#
+#
+# #top 15
+# plot_importance(final_model, X, num=15)
+#
+# # # GBM
+# # def get_top_features(model, features, num=15):
+# #     feature_imp = pd.DataFrame({'Value': model.feature_importances_, 'Feature': features.columns})
+# #     top_features = feature_imp.sort_values(by="Value", ascending=False).head(num)['Feature'].tolist()
+# #     return top_features
+# #
+# # top_15_features = get_top_features(final_model, X)
+# # print(top_15_features)
+# #
+# # selected_columns = top_15_features + ["Target"]
+# # df_gbm = df[selected_columns]
+# #
+# #
+# # y = df_gbm["Target"]
+# # X = df_gbm.drop(["Target"], axis=1)
+# #
+# # X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+# #
+# # # GBM modelini oluşturun
+# # final_model = GradientBoostingClassifier(learning_rate = 0.1, max_depth= 3, n_estimators= 1000, subsample= 0.7)
+# #
+# # # Modeli eğitin
+# # final_model.fit(X_train, y_train)
+# #
+# # # Detaylı sınıflandırma raporunu alın
+# # y_pred = final_model.predict(X_test)
+# # report = classification_report(y_test, y_pred, target_names=['Negatif', 'Pozitif'])
+# # print(report)
+# # #               precision    recall  f1-score   support
+# # #      Negatif       0.97      0.99      0.98      1705
+# # #      Pozitif       0.94      0.83      0.88       316
+# # #     accuracy                           0.97      2021
+# # #    macro avg       0.96      0.91      0.93      2021
+# # # weighted avg       0.96      0.97      0.96      2021
+#
+#
+# # KNN
 # def get_top_features(model, features, num=15):
 #     feature_imp = pd.DataFrame({'Value': model.feature_importances_, 'Feature': features.columns})
 #     top_features = feature_imp.sort_values(by="Value", ascending=False).head(num)['Feature'].tolist()
@@ -1045,7 +1138,7 @@ plot_importance(final_model, X, num=15)
 # X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 #
 # # GBM modelini oluşturun
-# final_model = GradientBoostingClassifier(learning_rate = 0.1, max_depth= 3, n_estimators= 1000, subsample= 0.7)
+# final_model = KNeighborsClassifier()(learning_rate = 0.1, max_depth= 3, n_estimators= 1000, subsample= 0.7)
 #
 # # Modeli eğitin
 # final_model.fit(X_train, y_train)
@@ -1060,52 +1153,16 @@ plot_importance(final_model, X, num=15)
 # #     accuracy                           0.97      2021
 # #    macro avg       0.96      0.91      0.93      2021
 # # weighted avg       0.96      0.97      0.96      2021
-
-
-# KNN
-def get_top_features(model, features, num=15):
-    feature_imp = pd.DataFrame({'Value': model.feature_importances_, 'Feature': features.columns})
-    top_features = feature_imp.sort_values(by="Value", ascending=False).head(num)['Feature'].tolist()
-    return top_features
-
-top_15_features = get_top_features(final_model, X)
-print(top_15_features)
-
-selected_columns = top_15_features + ["Target"]
-df_gbm = df[selected_columns]
-
-
-y = df_gbm["Target"]
-X = df_gbm.drop(["Target"], axis=1)
-
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
-
-# GBM modelini oluşturun
-final_model = KNeighborsClassifier()(learning_rate = 0.1, max_depth= 3, n_estimators= 1000, subsample= 0.7)
-
-# Modeli eğitin
-final_model.fit(X_train, y_train)
-
-# Detaylı sınıflandırma raporunu alın
-y_pred = final_model.predict(X_test)
-report = classification_report(y_test, y_pred, target_names=['Negatif', 'Pozitif'])
-print(report)
-#               precision    recall  f1-score   support
-#      Negatif       0.97      0.99      0.98      1705
-#      Pozitif       0.94      0.83      0.88       316
-#     accuracy                           0.97      2021
-#    macro avg       0.96      0.91      0.93      2021
-# weighted avg       0.96      0.97      0.96      2021
-
-
-# burada error veriyor category'ye çevirmek
-import shap
-# SHAP değerlerini hesaplamak için CatBoost açıklayıcısını kullanın
-explainer = shap.TreeExplainer(final_model, cat_features="cluster_no")
-shap_values = explainer.shap_values(X)
-
-# SHAP özet grafiği
-shap.summary_plot(shap_values, X, plot_type="bar")
+#
+#
+# # burada error veriyor category'ye çevirmek
+# import shap
+# # SHAP değerlerini hesaplamak için CatBoost açıklayıcısını kullanın
+# explainer = shap.TreeExplainer(final_model, cat_features="cluster_no")
+# shap_values = explainer.shap_values(X)
+#
+# # SHAP özet grafiği
+# shap.summary_plot(shap_values, X, plot_type="bar")
 
 
 
