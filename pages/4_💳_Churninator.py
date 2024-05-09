@@ -948,8 +948,6 @@ plt.grid(True)
 plt.show()
 
 #presicion-recall eğrisi:
-
-
 precision, recall, _ = precision_recall_curve(y_test, test_proba)
 
 # Precision-Recall eğrisini çiz
