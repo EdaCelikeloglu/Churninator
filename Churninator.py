@@ -36,11 +36,6 @@ theme_settings = {
 with st.sidebar:
     st.title('🤖 Churninator')
 
-
-# st.markdown("# Analiz")
-# st.sidebar.header("Analiz")
-
-
 @st.cache_data
 def load_data():
     df = pd.read_csv("BankChurners.csv")
@@ -50,78 +45,7 @@ def load_data():
 # Veri setini yükleme
 df = load_data()
 
-import streamlit as st
 
-import streamlit as st
-
-# Add CSS to style the background and button
-st.markdown(
-    """
-    <style>
-    body {
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        height: 100vh;
-        background-image: url('Background_image.svg');
-        background-size: cover;
-    }
-    .button {
-        background-color: purple;
-        color: white;
-        padding: 10px 20px;
-        border-radius: 5px;
-        font-size: 16px;
-        border: none;
-        cursor: pointer;
-    }
-    .button:hover {
-        background-color: blue;
-    }
-    </style>
-    """,
-    unsafe_allow_html=True
-)
-
-# Add button
-if st.button("Müşteri Bilgilerini Sunucudan Çekmek / Güncellemek İçin Tıklayın"):
-    st.empty()  # Remove the button after being clicked
-
-
-# st.markdown(
-#     """
-#     <style>
-#     .button {
-#         background-color: purple !important;
-#     }
-#     .button:hover {
-#         background-color: blue !important;
-#     }
-#     </style>
-#     """,
-#     unsafe_allow_html=True
-# )
-# result = st.button("Müşterileri Bilgilerini Sunucudan Çekmek İçin Tıklayın")
-# if result:
-#   st.write("Kaybetme riski ile karşı karşıya olduğunuz müşterilerinizi on farklı gruba ayırdık.")
-#   st.write(formatted_string)
-#   st.write("**Önerilerimiz:**")
-#   st.write()
-
-# def set_transparent_background(plt_object):
-#     if isinstance(plt_object, plt.Axes) or isinstance(plt_object, plt.Figure):
-#         # For Matplotlib and Seaborn plots
-#         plt_object.patch.set_alpha(0)
-#         plt_object.tick_params(axis='x', colors='white')
-#         plt_object.tick_params(axis='y', colors='white')
-#         plt_object.xaxis.label.set_color('white')
-#         plt_object.yaxis.label.set_color('white')
-#     elif hasattr(plt_object, 'update_layout'):
-#         # For Plotly plots
-#         plt_object.update_layout(plot_bgcolor='rgba(0,0,0,0)')
-#
-#     else:
-#         st.error("Unsupported plot type")
 
 def set_transparent_background(plt_object):
     if isinstance(plt_object, plt.Axes) or isinstance(plt_object, plt.Figure):
@@ -445,6 +369,7 @@ seg_map = {
 df['Segment'] = df['RecencyScore'].astype(str) + df['FrequencyScore'].astype(str)
 df['Segment'] = df['Segment'].replace(seg_map, regex=True)
 df.head(40)
+
 
 # 33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333
 # tüm görselleştirme
