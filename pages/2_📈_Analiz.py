@@ -8,6 +8,8 @@ import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
 from math import pi
+
+from sklearn.decomposition import PCA
 from sklearn.impute import KNNImputer
 from sklearn.neighbors import LocalOutlierFactor
 from sklearn.preprocessing import OrdinalEncoder, RobustScaler
@@ -17,7 +19,7 @@ warnings.simplefilter(action="ignore")
 
 
 
-st.set_page_config(page_title="Analiz", page_icon="📈")
+st.set_page_config(page_title="Analiz", page_icon="📈", layout="wide")
 
 st.markdown("# Analiz")
 st.sidebar.header("Analiz")
@@ -371,19 +373,6 @@ fig = px.treemap(df, path=['Target', 'Segment'], title="Target ve Segment")
 fig.update_layout(height=600, width=800)
 st.plotly_chart(fig)
 
-#bubblechart
-fig = px.scatter(
-    df,
-    x="Total_Amt_Chng_Q4_Q1",
-    y="Avg_Utilization_Ratio",
-    size="Important_client_score",
-    color="Segment",
-    hover_name="Customer_Age",
-    size_max=60,
-    title="Müşteri Değer Skorlarına Göre Bubble Chart"
-)
-st.plotly_chart(fig)
-
 
 
 # Ürün sayısı arttıkça Churn olasılığı azalıyor
@@ -394,13 +383,13 @@ fig = px.bar(mean_target_by_relationship, x="Total_Relationship_Count", y="Targe
              title="Toplam Ürün Sayısına Göre Target", color_discrete_sequence=["blue"])
 st.plotly_chart(fig)
 
-# Yeni gelen müşteriler risk mi?
-st.write("Yeni gelen müşteriler risk mi?")
-mean_target_by_inactive_months = df.groupby("Months_Inactive_12_mon")["Target"].mean().reset_index()
-fig = px.bar(mean_target_by_inactive_months, x="Months_Inactive_12_mon", y="Target",
-             labels={"Months_Inactive_12_mon": "İnaktif Ay Sayısı", "Target": "Target"},
-             title="İnaktif Ay Sayısına Göre Target", color_discrete_sequence=px.colors.qualitative.Pastel)
-st.plotly_chart(fig)
+# # Yeni gelen müşteriler risk mi?
+# st.write("Yeni gelen müşteriler risk mi?")
+# mean_target_by_inactive_months = df.groupby("Months_Inactive_12_mon")["Target"].mean().reset_index()
+# fig = px.bar(mean_target_by_inactive_months, x="Months_Inactive_12_mon", y="Target",
+#              labels={"Months_Inactive_12_mon": "İnaktif Ay Sayısı", "Target": "Target"},
+#              title="İnaktif Ay Sayısına Göre Target", color_discrete_sequence=px.colors.qualitative.Pastel)
+# st.plotly_chart(fig)
 
 # Borcu çok olanlar gidemiyor
 mean_utilization_by_target = df.groupby("Target")["Avg_Utilization_Ratio"].mean().reset_index()
@@ -538,13 +527,6 @@ st.pyplot(fig)
 
 
 
-# #büyük Pasta
-# #'Education_Level' 'Income_Category' bunları da koycam Nanlar sorun çıkardı
-# fig = px.sunburst(df, path=['Target', 'Gender', 'Customer_Age_Category', 'Marital_Status'])
-# fig.update_layout(height=1000, width=1000)
-# # Streamlit ile gösterme
-# st.plotly_chart(fig)
-# #bunun farklı versiyonlarını deneyelim
 
 
 
@@ -632,7 +614,7 @@ filtered_df1 = df[df['Target'] == 1]
 filtered_df0 = df[df['Target'] == 0]
 
 # Kategorik değişkenler ve renkler
-categories = ['Gender', 'Contacts_Count_12_mon', 'Total_Relationship_Count', 'Segment', 'Marital_Status']
+categories = ['Gender', 'Contacts_Count_12_mon', 'Total_Relationship_Count', "Months_Inactive_12_mon", 'Marital_Status']
 colors = ['tab:blue', 'tab:green', 'tab:red', 'tab:pink', 'tab:orange']
 
 # Figür oluştur, 2 subplot ile (1 row, 2 columns)
@@ -688,41 +670,6 @@ for ax in axes:
 
 # Streamlit'te göster
 st.pyplot(fig)
-
-
-
-
-
-
-
-
-
-
-
-
-# PCA ve waffle plot:
-#bunu yapabilmek için tüm veri scale edilmiş olmalı
-#o yüzden modele kadar herşeyi üste ekledim
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -791,3 +738,55 @@ plt.legend(loc='upper right', bbox_to_anchor=(0.1, 0.1))
 
 # Show the graph
 st.pyplot(fig)
+
+
+
+#PCA hazırlık
+df.head()
+df = one_hot_encoder(df, ["Marital_Status",
+                          "Age_&_Marital",
+                          "Gender_&_Age",
+                          "Card_&_Age",
+                          "Gender_&_Frequency",
+                          "Gender_&_Monetary",
+                          'Ct_vs_Amt',
+                          'Dependent_count',
+                          'Total_Relationship_Count',
+                          'Months_Inactive_12_mon',
+                          'Contacts_Count_12_mon'],
+                          drop_first=True)
+
+cat_cols, num_cols, cat_but_car = grab_col_names(df)
+
+scal_cols = ['Customer_Age',
+ 'Months_on_book',
+ 'Credit_Limit',
+ 'Total_Revolving_Bal',
+ 'Avg_Open_To_Buy',
+ 'Total_Trans_Amt',
+ 'Total_Trans_Ct',
+ 'Important_client_score',
+ 'Avg_Trans_Amt',]
+
+rs = RobustScaler()
+df[scal_cols] = rs.fit_transform(df[scal_cols])
+
+features_scaled = df.drop(['Segment'], axis=1)
+# PCA uygulama (3 ana bileşen)
+pca = PCA(n_components=3)
+components = pca.fit_transform(features_scaled)
+
+# PCA sonuçlarını DataFrame'e dönüştürme
+pca_df = pd.DataFrame(data=components, columns=['PC1', 'PC2', 'PC3'])
+pca_df['Segment'] = df['Segment']  # Renklendirme için Segment sütununu ekleme
+
+# 3D scatter plot oluşturma
+fig_pca = px.scatter_3d(pca_df, x='PC1', y='PC2', z='PC3', color='Segment',
+                    title="PCA Results (3D) Colored by Segment")
+fig_pca.update_traces(marker=dict(size=3))
+fig_pca.update_layout(width=1000, height=800)
+st.plotly_chart(fig_pca)
+
+
+
+
