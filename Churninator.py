@@ -15,7 +15,6 @@ from sklearn.decomposition import PCA
 from sklearn.impute import KNNImputer
 from sklearn.neighbors import LocalOutlierFactor
 from sklearn.preprocessing import OrdinalEncoder, RobustScaler
-from main import process_data
 import warnings
 
 warnings.simplefilter(action="ignore")
@@ -381,65 +380,8 @@ df['Segment'] = df['RecencyScore'].astype(str) + df['FrequencyScore'].astype(str
 df['Segment'] = df['Segment'].replace(seg_map, regex=True)
 df.head(40)
 
-# 33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333
-# tüm görselleştirme
 
-#####
-# def calculate_churn(dataframe, input_year):
-#   selected_year_data = dataframe[dataframe['year'] == input_year].reset_index()
-#   previous_year_data = dataframe[dataframe['year'] == input_year - 1].reset_index()
-#   selected_year_data['population_difference'] = selected_year_data.population.sub(previous_year_data.population, fill_value=0)
-#   return pd.concat([selected_year_data.states, selected_year_data.id, selected_year_data.population, selected_year_data.population_difference], axis=1).sort_values(by="population_difference", ascending=False)
-#
-#
-# def make_donut(input_response, input_text, input_color):
-#     input_response = dataframe["Target"]==1.sum()/len
-#     if input_color == 'blue':
-#         chart_color = ['#29b5e8', '#155F7A']
-#     if input_color == 'green':
-#         chart_color = ['#27AE60', '#12783D']
-#     if input_color == 'orange':
-#         chart_color = ['#F39C12', '#875A12']
-#     if input_color == 'red':
-#         chart_color = ['#E74C3C', '#781F16']
-#
-#
-#     source = pd.DataFrame({
-#         "Topic": ['', input_text],
-#         "% value": [100 - input_response, input_response]
-#     })
-#     source_bg = pd.DataFrame({
-#         "Topic": ['', input_text],
-#         "% value": [100, 0]
-#     })
-#
-#     plot = alt.Chart(source).mark_arc(innerRadius=45, cornerRadius=25).encode(
-#         theta="% value",
-#         color=alt.Color("Topic:N",
-#                         scale=alt.Scale(
-#                             # domain=['A', 'B'],
-#                             domain=[input_text, ''],
-#                             # range=['#29b5e8', '#155F7A']),  # 31333F
-#                             range=chart_color),
-#                         legend=None),
-#     ).properties(width=130, height=130)
-#
-#     text = plot.mark_text(align='center', color="#29b5e8", font="Lato", fontSize=32, fontWeight=700,
-#                           fontStyle="italic").encode(text=alt.value(f'{input_response} %'))
-#     plot_bg = alt.Chart(source_bg).mark_arc(innerRadius=45, cornerRadius=20).encode(
-#         theta="% value",
-#         color=alt.Color("Topic:N",
-#                         scale=alt.Scale(
-#                             # domain=['A', 'B'],
-#                             domain=[input_text, ''],
-#                             range=chart_color),  # 31333F
-#                         legend=None),
-#     ).properties(width=130, height=130)
-#     return plot_bg + plot + text
-
-
-##########
-
+# Tüm görselleştirme
 
 ###### Dashboard kolonları başlangıç
 
@@ -567,7 +509,6 @@ with col[0]:
         '(6 - Contact Count)': [6 - (df[df["Target"] == 0]["Contacts_Count_12_mon"].mean()),
                                 6 - (df[df["Target"] == 1]["Contacts_Count_12_mon"].mean())],
     })
-    # todo burada düz contact_count değil 6-contact count aldım. Bu şekilde, "Grafikte çıkan şekilde hacim büyüdükçe churn azalıyor" diyebiliriz. Ama bunu bir konuşalım.
     # ------- PART 1: Create background
     # number of variable
     categories = list(df_radar)[1:]
