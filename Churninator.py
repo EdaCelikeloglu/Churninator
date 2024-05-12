@@ -15,14 +15,14 @@ from sklearn.decomposition import PCA
 from sklearn.impute import KNNImputer
 from sklearn.neighbors import LocalOutlierFactor
 from sklearn.preprocessing import OrdinalEncoder, RobustScaler
-from main import process_data
 import warnings
 
 warnings.simplefilter(action="ignore")
 
 st.set_page_config(page_title="Churninator", page_icon="🤖", layout="wide")
 alt.themes.enable("dark")
-
+plt.rcParams['text.color'] = 'white'
+plt.rcParams['font.weight'] = 'bold'
 
 st.markdown("# Churninator")
 
@@ -36,6 +36,15 @@ theme_settings = {
 with st.sidebar:
     st.title('🤖 Churninator')
 
+
+# Add button
+if st.button("Müşteri Bilgilerini Sunucudan Çekmek / Güncellemek İçin Tıklayın"):
+    st.empty()  # Remove the button after being clicked
+
+
+
+
+
 @st.cache_data
 def load_data():
     df = pd.read_csv("BankChurners.csv")
@@ -44,6 +53,7 @@ def load_data():
 
 # Veri setini yükleme
 df = load_data()
+
 
 
 
@@ -371,72 +381,14 @@ df['Segment'] = df['Segment'].replace(seg_map, regex=True)
 df.head(40)
 
 
-# 33333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333
-# tüm görselleştirme
-
-#####
-# def calculate_churn(dataframe, input_year):
-#   selected_year_data = dataframe[dataframe['year'] == input_year].reset_index()
-#   previous_year_data = dataframe[dataframe['year'] == input_year - 1].reset_index()
-#   selected_year_data['population_difference'] = selected_year_data.population.sub(previous_year_data.population, fill_value=0)
-#   return pd.concat([selected_year_data.states, selected_year_data.id, selected_year_data.population, selected_year_data.population_difference], axis=1).sort_values(by="population_difference", ascending=False)
-#
-#
-# def make_donut(input_response, input_text, input_color):
-#     input_response = dataframe["Target"]==1.sum()/len
-#     if input_color == 'blue':
-#         chart_color = ['#29b5e8', '#155F7A']
-#     if input_color == 'green':
-#         chart_color = ['#27AE60', '#12783D']
-#     if input_color == 'orange':
-#         chart_color = ['#F39C12', '#875A12']
-#     if input_color == 'red':
-#         chart_color = ['#E74C3C', '#781F16']
-#
-#
-#     source = pd.DataFrame({
-#         "Topic": ['', input_text],
-#         "% value": [100 - input_response, input_response]
-#     })
-#     source_bg = pd.DataFrame({
-#         "Topic": ['', input_text],
-#         "% value": [100, 0]
-#     })
-#
-#     plot = alt.Chart(source).mark_arc(innerRadius=45, cornerRadius=25).encode(
-#         theta="% value",
-#         color=alt.Color("Topic:N",
-#                         scale=alt.Scale(
-#                             # domain=['A', 'B'],
-#                             domain=[input_text, ''],
-#                             # range=['#29b5e8', '#155F7A']),  # 31333F
-#                             range=chart_color),
-#                         legend=None),
-#     ).properties(width=130, height=130)
-#
-#     text = plot.mark_text(align='center', color="#29b5e8", font="Lato", fontSize=32, fontWeight=700,
-#                           fontStyle="italic").encode(text=alt.value(f'{input_response} %'))
-#     plot_bg = alt.Chart(source_bg).mark_arc(innerRadius=45, cornerRadius=20).encode(
-#         theta="% value",
-#         color=alt.Color("Topic:N",
-#                         scale=alt.Scale(
-#                             # domain=['A', 'B'],
-#                             domain=[input_text, ''],
-#                             range=chart_color),  # 31333F
-#                         legend=None),
-#     ).properties(width=130, height=130)
-#     return plot_bg + plot + text
-
-
-##########
-
+# Tüm görselleştirme
 
 ###### Dashboard kolonları başlangıç
 
 col = st.columns([0.5, 0.5], gap='small')
 
 with col[0]:
-    st.markdown('#### Gains/Losses')
+
 
     # PCA hazırlık
     df1 = df.copy()
@@ -452,9 +404,7 @@ with col[0]:
                                 'Months_Inactive_12_mon',
                                 'Contacts_Count_12_mon'],
                           drop_first=True)
-
     cat_cols, num_cols, cat_but_car = grab_col_names(df1)
-
     scal_cols = ['Customer_Age',
                  'Months_on_book',
                  'Credit_Limit',
@@ -464,29 +414,148 @@ with col[0]:
                  'Total_Trans_Ct',
                  'Important_client_score',
                  'Avg_Trans_Amt']
-
     rs = RobustScaler()
     df1[scal_cols] = rs.fit_transform(df1[scal_cols])
-
     features_scaled = df1.drop(['Segment'], axis=1)
     # PCA uygulama (3 ana bileşen)
     pca = PCA(n_components=3)
     components = pca.fit_transform(features_scaled)
-
     # PCA sonuçlarını DataFrame'e dönüştürme
     pca_df = pd.DataFrame(data=components, columns=['PC1', 'PC2', 'PC3'])
     pca_df['Segment'] = df1['Segment']  # Renklendirme için Segment sütununu ekleme
 
     # 3D scatter plot oluşturma
     fig_pca = px.scatter_3d(pca_df, x='PC1', y='PC2', z='PC3', color='Segment',
-                            title="PCA Results (3D) Colored by Segment")
+                            title="Segment Dağılımı")
     fig_pca.update_traces(marker=dict(size=3))
     fig_pca.update_layout(width=1000, height=800)
     st.plotly_chart(fig_pca)
 
+    # İki daire
+    st.write("Targeta Göre Müşterilerin Özellikleri")
+    filtered_df1 = df[df['Target'] == 1]
+    filtered_df0 = df[df['Target'] == 0]
+    # Kategorik değişkenler ve renkler
+    categories = ['Gender', 'Contacts_Count_12_mon', 'Total_Relationship_Count', "Months_Inactive_12_mon",
+                  'Marital_Status']
+    colors = ['tab:blue', 'tab:green', 'tab:red', 'tab:pink', 'tab:orange']
+    # Figür oluştur, 2 subplot ile (1 row, 2 columns)
+    fig, axes = plt.subplots(1, 2, figsize=(10, 5), dpi=1000, subplot_kw={'projection': 'polar'})
+    # Target 1 için
+    ax = axes[0]
+    total_categories = sum(filtered_df1[cat].nunique() for cat in categories)
+    angles = np.linspace(0, 2 * np.pi, total_categories, endpoint=False)
+    bar_width = (2 * np.pi / total_categories) * 0.8  # %80 genişlik, %20 boşluk
+    start = 0
+    for i, category in enumerate(categories):
+        unique_vals = df[category].unique()
+        value_counts = filtered_df1[category].value_counts().reindex(unique_vals, fill_value=0)
+        category_angles = angles[start:start + len(unique_vals)]
+        bars = ax.bar(category_angles, value_counts, width=bar_width, color=colors[i], alpha=0.6, label=category,
+                      bottom=600)
+        # Kategori değerlerinin isimlerini her barın üstüne yazma
+        for bar, label in zip(bars, value_counts.index):
+            angle = bar.get_x() + bar_width / 2  # Metni barın merkezine yerleştir
+            height = 800
+            ax.text(angle, height, str(label), color='black', ha='left', va='center', rotation=np.degrees(angle),
+                    rotation_mode='anchor', fontsize=7)
+        start += len(unique_vals)
+        ax.text(0, 0, "1", color='black', ha='center', va='center', fontsize=12)
+    fig.legend()
+    # Target 0 için
+    ax = axes[1]
+    total_categories = sum(filtered_df0[cat].nunique() for cat in categories)
+    angles = np.linspace(0, 2 * np.pi, total_categories, endpoint=False)
+    start = 0
+    for i, category in enumerate(categories):
+        unique_vals = df[category].unique()
+        value_counts = filtered_df0[category].value_counts().reindex(unique_vals, fill_value=0)
+        category_angles = angles[start:start + len(unique_vals)]
+        bars = ax.bar(category_angles, value_counts, width=bar_width, color=colors[i], alpha=0.6, label=category,
+                      bottom=3000)
+        # Kategori değerlerinin isimlerini her barın üstüne yazma
+        for bar, label in zip(bars, value_counts.index):
+            angle = bar.get_x() + bar_width / 2  # Metni barın merkezine yerleştir
+            height = 3800
+            ax.text(angle, height, str(label), color='black', ha='left', va='center', rotation=np.degrees(angle),
+                    rotation_mode='anchor', fontsize=7)
+        start += len(unique_vals)
+        ax.text(0, 0, "0", color='black', ha='center', va='center', fontsize=12)
+    # Ortak ayarlar
+    for ax in axes:
+        ax.grid(False)
+        ax.set_xticklabels([])
+        ax.set_yticklabels([])
+        ax.spines['polar'].set_visible(False)
+    # Streamlit'te göster
+    set_transparent_background(fig)
+    st.pyplot(fig)
+
+    # Radar grafiği
+    # ------- PART 0: Reverse MinMax Scaler
+    st.write()
+    df['FrequencyScore'] = df['FrequencyScore'].cat.codes
+    df['MonetaryScore'] = df['MonetaryScore'].cat.codes
+    # Set data
+    df_radar = pd.DataFrame({
+        'group': ["Staying Customer", 'Churned Customer'],
+        'Relationship Count': [df[df["Target"] == 0]["Total_Relationship_Count"].mean(),
+                               df[df["Target"] == 1]["Total_Relationship_Count"].mean()],
+        'Recency Score': [df[df["Target"] == 0]["RecencyScore"].mean(), df[df["Target"] == 1]["RecencyScore"].mean()],
+        'Frequency Score': [df[df["Target"] == 0]["FrequencyScore"].mean(),
+                            df[df["Target"] == 1]["FrequencyScore"].mean()],
+        'Monetary Score': [df[df["Target"] == 0]["MonetaryScore"].mean(),
+                           df[df["Target"] == 1]["MonetaryScore"].mean()],
+        '(6 - Contact Count)': [6 - (df[df["Target"] == 0]["Contacts_Count_12_mon"].mean()),
+                                6 - (df[df["Target"] == 1]["Contacts_Count_12_mon"].mean())],
+    })
+    # ------- PART 1: Create background
+    # number of variable
+    categories = list(df_radar)[1:]
+    N = len(categories)
+    # What will be the angle of each axis in the plot? (we divide the plot / number of variable)
+    angles = [n / float(N) * 2 * pi for n in range(N)]
+    angles += angles[:1]
+    # Initialise the spider plot
+    # ax = plt.subplot(111, polar=True)
+    fig, ax = plt.subplots(figsize=(8, 8), subplot_kw=dict(polar=True))
+    # If you want the first axis to be on top:
+    ax.set_theta_offset(pi / 2)
+    ax.set_theta_direction(-1)
+    # Draw one axe per variable + add labels
+    plt.xticks(angles[:-1], categories)
+    # Draw ylabels
+    ax.set_rlabel_position(0)
+    plt.yticks([1, 2, 3], ["1", "2", "3"], color="grey", size=7)
+    plt.ylim(0, 4)
+    # ------- PART 2: Add plots
+    # Plot each individual = each line of the data
+    # Ind1
+    values = df_radar.loc[0].drop('group').values.flatten().tolist()
+    values += values[:1]
+    ax.plot(angles, values, linewidth=1, linestyle='solid', label="Staying Customer")
+    ax.fill(angles, values, 'b', alpha=0.1)
+    # Başlık ekleyin
+    ax.set_title('Müşteri Durum Analizi')
+
+    # Ind2
+    values = df_radar.loc[1].drop('group').values.flatten().tolist()
+    values += values[:1]
+    ax.plot(angles, values, linewidth=1, linestyle='solid', label='Churned Customer')
+    ax.fill(angles, values, 'g', alpha=0.1)
+    # Add legend
+    plt.legend(loc='upper right', bbox_to_anchor=(0.1, 0.1))
+    # Show the graph
+    set_transparent_background(fig)
+    st.pyplot(fig)
+
+
+
+
+
+
     ####
     # Ürün sayısı arttıkça Churn olasılığı azalıyor
-    st.write("Ürün sayısı arttıkça Churn olasılığı azalıyor.")
     mean_target_by_relationship = df.groupby("Total_Relationship_Count")["Target"].mean().reset_index()
     fig = px.bar(mean_target_by_relationship, x="Total_Relationship_Count", y="Target",
                  labels={"Total_Relationship_Count": "Toplam Ürün Sayısı", "Target": "Target"},
@@ -521,8 +590,6 @@ with col[0]:
         st.plotly_chart(fig_revolving_bal)
 
 with col[1]:
-    st.markdown('#### Total Population')
-
     # Heatmap
     data = {
         '1': [0.000, 0.515, 0.552, 0.532, 0.616, 0.000],
@@ -541,7 +608,7 @@ with col[1]:
     fig, ax = plt.subplots(figsize=(10, 8))
     heatmap = sns.heatmap(grouped_data, cmap='plasma', annot=True, fmt=".2f", ax=ax, vmin=0, vmax=4)
     ax.invert_yaxis()
-
+    ax.set_title('Kredi Limiti ve Dönüşen Bakiye Dağılımı')
     # Ensure all spines are visible
     ax.spines['top'].set_visible(True)
     ax.spines['right'].set_visible(True)
@@ -572,6 +639,59 @@ with col[1]:
     fig = px.treemap(df, path=['Target', 'Segment'], title="Target ve Segment")
     fig.update_layout(height=600, width=800)
     st.plotly_chart(fig)
+
+    #hız göstergeleri
+    persona = ["May_marry", "Credit_builder_criteria", "Family_criteria"]
+    grid = [st.columns(3) for _ in range(3)]
+    current_column = 0
+    row = 0
+    # Her bir feature için Target yüzdesini hesaplama ve grafik oluşturma
+    for feature in persona:
+        if feature in df.columns:
+            # Feature 1 olan kayıtları filtrele
+            filtered_df = df[df[feature] == 1]
+            # Target 1 olanların yüzdesini hesapla
+            if not filtered_df.empty:
+                percentage = (filtered_df['Target'].sum() / filtered_df.shape[0]) * 100
+            else:
+                percentage = 0  # Eğer feature 1 hiç yoksa
+            # Yarım daire grafik oluştur
+            fig = go.Figure(go.Indicator(
+                mode="gauge+number",
+                value=percentage,
+                domain={'x': [0, 1], 'y': [0, 1]},
+                title={'text': f"{feature}", 'font': {'size': 16}},
+                gauge={
+                    'axis': {'range': [None, 100], 'tickwidth': 1, 'tickcolor': "darkblue"},
+                    'bar': {'color': "green"},
+                    'bgcolor': "white",
+                    'borderwidth': 2,
+                    'bordercolor': "gray",
+                    'steps': [
+                        {'range': [0, percentage], 'color': 'lavender'},
+                        {'range': [percentage, 100], 'color': 'mintcream'}],
+                    'threshold': {
+                        'line': {'color': "red", 'width': 4},
+                        'thickness': 0.75,
+                        'value': percentage}}))
+            fig.update_layout(
+                width=50,  # Genişlik
+                height=200,  # Yükseklik
+                margin=dict(l=10, r=10, t=10, b=10),  # Kenar boşlukları
+                showlegend=False  # Açıklama gösterme
+            )
+            # Streamlit'te grafikleri göster
+            st.plotly_chart(fig, use_container_width=True)
+            current_column += 1
+            if current_column > 2:
+                current_column = 0
+                row += 1
+
+
+
+
+
+
 
     # Gelir kategorilerine göre ortalama devir bakiyesi
     fig = px.bar(df, x="Income_Category", y="Total_Revolving_Bal",
@@ -642,137 +762,16 @@ with col[1]:
     st.plotly_chart(fig_gender_age)
     st.plotly_chart(fig_card_age)
 
-    # Filtered DataFrames
-    filtered_df1 = df[df['Target'] == 1]
-    filtered_df0 = df[df['Target'] == 0]
 
-    # Kategorik değişkenler ve renkler
-    categories = ['Gender', 'Contacts_Count_12_mon', 'Total_Relationship_Count', "Months_Inactive_12_mon",
-                  'Marital_Status']
-    colors = ['tab:blue', 'tab:green', 'tab:red', 'tab:pink', 'tab:orange']
 
-    # Figür oluştur, 2 subplot ile (1 row, 2 columns)
-    fig, axes = plt.subplots(1, 2, figsize=(10, 5), dpi=1000, subplot_kw={'projection': 'polar'})
 
-    # Target 1 için
-    ax = axes[0]
-    total_categories = sum(filtered_df1[cat].nunique() for cat in categories)
-    angles = np.linspace(0, 2 * np.pi, total_categories, endpoint=False)
-    bar_width = (2 * np.pi / total_categories) * 0.8  # %80 genişlik, %20 boşluk
-    start = 0
-    for i, category in enumerate(categories):
-        unique_vals = df[category].unique()
-        value_counts = filtered_df1[category].value_counts().reindex(unique_vals, fill_value=0)
-        category_angles = angles[start:start + len(unique_vals)]
-        bars = ax.bar(category_angles, value_counts, width=bar_width, color=colors[i], alpha=0.6, label=category,
-                      bottom=600)
-        # Kategori değerlerinin isimlerini her barın üstüne yazma
-        for bar, label in zip(bars, value_counts.index):
-            angle = bar.get_x() + bar_width / 2  # Metni barın merkezine yerleştir
-            height = 800
-            ax.text(angle, height, str(label), color='black', ha='left', va='center', rotation=np.degrees(angle),
-                    rotation_mode='anchor', fontsize=7)
-        start += len(unique_vals)
-        ax.text(0, 0, "1", color='black', ha='center', va='center', fontsize=12)
-    fig.legend()
 
-    # Target 0 için
-    ax = axes[1]
-    total_categories = sum(filtered_df0[cat].nunique() for cat in categories)
-    angles = np.linspace(0, 2 * np.pi, total_categories, endpoint=False)
-    start = 0
-    for i, category in enumerate(categories):
-        unique_vals = df[category].unique()
-        value_counts = filtered_df0[category].value_counts().reindex(unique_vals, fill_value=0)
-        category_angles = angles[start:start + len(unique_vals)]
-        bars = ax.bar(category_angles, value_counts, width=bar_width, color=colors[i], alpha=0.6, label=category,
-                      bottom=3000)
-        # Kategori değerlerinin isimlerini her barın üstüne yazma
-        for bar, label in zip(bars, value_counts.index):
-            angle = bar.get_x() + bar_width / 2  # Metni barın merkezine yerleştir
-            height = 3800
-            ax.text(angle, height, str(label), color='black', ha='left', va='center', rotation=np.degrees(angle),
-                    rotation_mode='anchor', fontsize=7)
-        start += len(unique_vals)
-        ax.text(0, 0, "0", color='black', ha='center', va='center', fontsize=12)
 
-    # Ortak ayarlar
-    for ax in axes:
-        ax.grid(False)
-        ax.set_xticklabels([])
-        ax.set_yticklabels([])
-        ax.spines['polar'].set_visible(False)
 
-    # Streamlit'te göster
-    set_transparent_background(fig)
-    st.pyplot(fig)
 
-    # Radar grafiği
-    # ------- PART 0: Reverse MinMax Scaler
-    df['FrequencyScore'] = df['FrequencyScore'].cat.codes
-    df['MonetaryScore'] = df['MonetaryScore'].cat.codes
 
-    # Set data
-    df_radar = pd.DataFrame({
-        'group': ["Staying Customer", 'Churned Customer'],
-        'Relationship Count': [df[df["Target"] == 0]["Total_Relationship_Count"].mean(),
-                               df[df["Target"] == 1]["Total_Relationship_Count"].mean()],
-        'Recency Score': [df[df["Target"] == 0]["RecencyScore"].mean(), df[df["Target"] == 1]["RecencyScore"].mean()],
-        'Frequency Score': [df[df["Target"] == 0]["FrequencyScore"].mean(),
-                            df[df["Target"] == 1]["FrequencyScore"].mean()],
-        'Monetary Score': [df[df["Target"] == 0]["MonetaryScore"].mean(),
-                           df[df["Target"] == 1]["MonetaryScore"].mean()],
-        '(6 - Contact Count)': [6 - (df[df["Target"] == 0]["Contacts_Count_12_mon"].mean()),
-                                6 - (df[df["Target"] == 1]["Contacts_Count_12_mon"].mean())],
-    })
-    # todo burada düz contact_count değil 6-contact count aldım. Bu şekilde, "Grafikte çıkan şekilde hacim büyüdükçe churn azalıyor" diyebiliriz. Ama bunu bir konuşalım.
 
-    # ------- PART 1: Create background
-    # number of variable
-    categories = list(df_radar)[1:]
-    N = len(categories)
 
-    # What will be the angle of each axis in the plot? (we divide the plot / number of variable)
-    angles = [n / float(N) * 2 * pi for n in range(N)]
-    angles += angles[:1]
-
-    # Initialise the spider plot
-    # ax = plt.subplot(111, polar=True)
-    fig, ax = plt.subplots(figsize=(8, 8), subplot_kw=dict(polar=True))
-
-    # If you want the first axis to be on top:
-    ax.set_theta_offset(pi / 2)
-    ax.set_theta_direction(-1)
-
-    # Draw one axe per variable + add labels
-    plt.xticks(angles[:-1], categories)
-
-    # Draw ylabels
-    ax.set_rlabel_position(0)
-    plt.yticks([1, 2, 3], ["1", "2", "3"], color="grey", size=7)
-    plt.ylim(0, 4)
-
-    # ------- PART 2: Add plots
-    # Plot each individual = each line of the data
-
-    # Ind1
-    values = df_radar.loc[0].drop('group').values.flatten().tolist()
-    values += values[:1]
-    ax.plot(angles, values, linewidth=1, linestyle='solid', label="Staying Customer")
-    ax.fill(angles, values, 'b', alpha=0.1)
-
-    # Ind2
-    values = df_radar.loc[1].drop('group').values.flatten().tolist()
-    values += values[:1]
-    ax.plot(angles, values, linewidth=1, linestyle='solid', label='Churned Customer')
-    ax.fill(angles, values, 'orange', alpha=0.1)
-
-    # Add legend
-    plt.legend(loc='upper right', bbox_to_anchor=(0.1, 0.1))
-
-    # Show the graph
-    set_transparent_background(fig)
-    st.pyplot(fig)
 
     # personlar için grafik?
     # persona = ["May_marry", "Credit_builder_criteria", "Family_criteria"]
@@ -822,58 +821,7 @@ with col[1]:
     #             current_row = 0
     #             col += 1
 
-    persona = ["May_marry", "Credit_builder_criteria", "Family_criteria"]
 
-    grid = [st.columns(3) for _ in range(3)]
-    current_column = 0
-    row = 0
-
-    # Her bir feature için Target yüzdesini hesaplama ve grafik oluşturma
-    for feature in persona:
-        if feature in df.columns:
-            # Feature 1 olan kayıtları filtrele
-            filtered_df = df[df[feature] == 1]
-
-            # Target 1 olanların yüzdesini hesapla
-            if not filtered_df.empty:
-                percentage = (filtered_df['Target'].sum() / filtered_df.shape[0]) * 100
-            else:
-                percentage = 0  # Eğer feature 1 hiç yoksa
-
-            # Yarım daire grafik oluştur
-            fig = go.Figure(go.Indicator(
-                mode="gauge+number",
-                value=percentage,
-                domain={'x': [0, 1], 'y': [0, 1]},
-                title={'text': f"{feature}", 'font': {'size': 16}},
-                gauge={
-                    'axis': {'range': [None, 100], 'tickwidth': 1, 'tickcolor': "darkblue"},
-                    'bar': {'color': "green"},
-                    'bgcolor': "white",
-                    'borderwidth': 2,
-                    'bordercolor': "gray",
-                    'steps': [
-                        {'range': [0, percentage], 'color': 'lavender'},
-                        {'range': [percentage, 100], 'color': 'mintcream'}],
-                    'threshold': {
-                        'line': {'color': "red", 'width': 4},
-                        'thickness': 0.75,
-                        'value': percentage}}))
-
-            fig.update_layout(
-                width=50,  # Genişlik
-                height=200,  # Yükseklik
-                margin=dict(l=10, r=10, t=10, b=10),  # Kenar boşlukları
-                showlegend=False  # Açıklama gösterme
-            )
-
-            # Streamlit'te grafikleri göster
-            st.plotly_chart(fig, use_container_width=True)
-
-            current_column += 1
-            if current_column > 2:
-                current_column = 0
-                row += 1
     import plotly.graph_objects as go
 
 # # Yeni gelen müşteriler risk mi?
