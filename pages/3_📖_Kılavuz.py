@@ -117,6 +117,7 @@ st.markdown(""" Müşterinin bankayla ilişkisi hakkındaki bilgiler:
 
 ##########################################################################
 # Kategorik değişkenler ve renkler
+# Bu grafiklerin kodunu yorum olarak paylaşıyoruz. Daha hızlı yüklenmesi için, Streamlit'te bu grafiklerin ekran görüntüsünü veriyoruz.
 categories = ['Gender', "Income_Category", "Education_Level", "Dependent_count", 'Marital_Status', "Card_Category", "Months_Inactive_12_mon", 'Total_Relationship_Count', 'Contacts_Count_12_mon']
 
 filtered_df0 = df[df['Attrition_Flag'] == "Existing Customer"]
