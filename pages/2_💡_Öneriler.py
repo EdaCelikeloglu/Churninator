@@ -8,7 +8,7 @@ st.set_page_config(page_title="Churninator | Öneriler", page_icon=":robot:", la
 st.markdown("# Öneriler")
 st.sidebar.header("Öneriler")
 
-
+# bu datayı daha önce mainde segment_counts_one olarak yakalamıştık şimdi manuel kaydediyoruz.
 data = {
     'Segment': ['About to Sleep', 'Potential Loyalists', 'Promising', 'Hibernating', 'Need Attention',
                 'New Customers', 'Loyal Customers', 'At Risk', 'Champions', "Can't Lose"],
