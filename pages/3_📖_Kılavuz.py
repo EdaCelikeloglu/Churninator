@@ -59,8 +59,8 @@ with col[0]:
 with col[1]:
 
     # Gülen ve Somurtan Yüz Sembolleri
-    smile_image = "Pages/0.png"
-    frown_image = "Pages/11.png"
+    smile_image = 'Pages/0.png'
+    frown_image = 'Pages/11.png'
     smile_count = 8500
     frown_count = 1627
     total_count = smile_count + frown_count
