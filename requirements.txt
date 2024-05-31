@@ -143,7 +143,7 @@ pyparsing==3.1.2
 PyPDF2==3.0.1
 pyproj==3.6.1
 PyQt5==5.15.7
-PyQt5-Qt5==5.15.2
+PyQt5-Qt5==5
 PyQt5-sip==12.13.0
 pyspark==3.5.1
 python-dateutil==2.9.0.post0
@@ -152,7 +152,7 @@ python-lsp-jsonrpc==1.1.0
 python-lsp-server==1.11.0
 pytz==2024.1
 pywaffle==1.1.0
-#pywin32==306
+pywin32==306
 pywinpty==2.0.13
 PyYAML==6.0.1
 pyzmq==26.0.3
