@@ -152,7 +152,7 @@ python-lsp-jsonrpc==1.1.0
 python-lsp-server==1.11.0
 pytz==2024.1
 pywaffle==1.1.0
-pywin32==306
+#pywin32==306
 pywinpty==2.0.13
 PyYAML==6.0.1
 pyzmq==26.0.3
