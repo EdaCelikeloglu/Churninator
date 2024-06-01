@@ -64,8 +64,8 @@ with col[1]:
     smile_count = 8500
     frown_count = 1627
     total_count = smile_count + frown_count
-    total_icons = 100
-    grid_size = 20
+    total_icons = 98
+    grid_size = 14
     smile_icons = round(smile_count / total_count * total_icons)
     frown_icons = total_icons - smile_icons
     icons = [smile_image] * smile_icons + [frown_image] * frown_icons
