@@ -83,7 +83,7 @@ with col[1]:
 
 
     # Gülen ve Somurtan Yüz Sembolleri
-    smile_image_path = 'Pages/0.png'
+    smile_image_path = 'C:\Users\Eda\PyCharmProjects\Eda-Çelikeloğlu-bitirme-projesi\pages\0.png'
     frown_image_path = 'Pages/11.png'
     smile_count = 8500
     frown_count = 1627
