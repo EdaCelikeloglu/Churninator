@@ -88,8 +88,8 @@ with col[1]:
     smile_count = 8500
     frown_count = 1627
     total_count = smile_count + frown_count
-    total_icons = 100
-    grid_size = 20
+    total_icons = 98
+    grid_size = 14
 
     # Resimleri base64 formatında kodla
     smile_image_base64 = get_base64_image(smile_image_path)
