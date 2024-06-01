@@ -58,19 +58,56 @@ with col[0]:
 
 with col[1]:
 
+    # # Gülen ve Somurtan Yüz Sembolleri
+    # smile_image = 'Pages/0.png'
+    # frown_image = 'Pages/11.png'
+    # smile_count = 8500
+    # frown_count = 1627
+    # total_count = smile_count + frown_count
+    # total_icons = 100
+    # grid_size = 20
+    # smile_icons = round(smile_count / total_count * total_icons)
+    # frown_icons = total_icons - smile_icons
+    # icons = [smile_image] * smile_icons + [frown_image] * frown_icons
+    # for row in range(0, total_icons, grid_size):
+    #     st.image(icons[row:row + grid_size], width=20, caption=None)
+
+    import base64
+    import os
+
+
+    # Base64 ile resmi kodlayan fonksiyon
+    def get_base64_image(image_path):
+        with open(image_path, "rb") as img_file:
+            return base64.b64encode(img_file.read()).decode()
+
+
     # Gülen ve Somurtan Yüz Sembolleri
-    smile_image = 'Pages/0.png'
-    frown_image = 'Pages/11.png'
+    smile_image_path = 'Pages/0.png'
+    frown_image_path = 'Pages/11.png'
     smile_count = 8500
     frown_count = 1627
     total_count = smile_count + frown_count
     total_icons = 100
     grid_size = 20
+
+    # Resimleri base64 formatında kodla
+    smile_image_base64 = get_base64_image(smile_image_path)
+    frown_image_base64 = get_base64_image(frown_image_path)
+
+    # Base64 kodlanmış verilerle HTML img etiketleri oluştur
+    smile_image_html = f'<img src="data:image/png;base64,{smile_image_base64}" width="20"/>'
+    frown_image_html = f'<img src="data:image/png;base64,{frown_image_base64}" width="20"/>'
+
     smile_icons = round(smile_count / total_count * total_icons)
     frown_icons = total_icons - smile_icons
-    icons = [smile_image] * smile_icons + [frown_image] * frown_icons
+
+    # HTML img etiketlerini kullanarak ikonlar listesini oluştur
+    icons = [smile_image_html] * smile_icons + [frown_image_html] * frown_icons
+
+    # Streamlit ile img etiketlerini görüntüle
     for row in range(0, total_icons, grid_size):
-        st.image(icons[row:row + grid_size], width=20, caption=None)
+        st.markdown(' '.join(icons[row:row + grid_size]), unsafe_allow_html=True)
 
 st.write("  ")
 st.write(
