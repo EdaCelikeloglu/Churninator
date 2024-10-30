@@ -1,6 +1,5 @@
 numpy>=1.26.4
 pillow>=10.3.0
-scipy>=1.11.4
 plotly>=5.22.0
 networkx>=3.4.2
 pandas>=2.2.3
@@ -12,3 +11,4 @@ imbalanced-learn>=0.12.4
 lightgbm>=4.5.0
 scikit-learn>=1.5.2
 xgboost>=2.1.2
+yellowbrick>=1.5
