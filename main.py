@@ -25,7 +25,8 @@ pd.set_option('display.max_columns', None)
 pd.set_option('display.width', 170)
 pd.set_option('display.max_rows', None)
 pd.set_option('display.float_format', lambda x: '%.3f' % x)
-
+import matplotlib
+matplotlib.use('TkAgg')
 
 # Değişkenler ve açıklamaları
 
@@ -315,6 +316,8 @@ df["Product_by_Year"] = df["Total_Relationship_Count"] / (df["Months_on_book"] /
 
 cat_cols, num_cols, cat_but_car = grab_col_names(df)
 
+df.to_csv("cleanedBankChurners.csv")
+
 # Encoding işlemleri:
 # Rare analyser:
 def rare_analyser(dataframe, target, cat_cols):
@@ -380,7 +383,7 @@ df["Income_Category"] = df["Income_Category"].round().astype("Int64")
 
 cat_cols, num_cols, cat_but_car = grab_col_names(df)
 
-df.to_csv("cleanedBankChurners.csv")
+
 
 # One-hot encoding
 df = one_hot_encoder(df, ["Marital_Status",
