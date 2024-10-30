@@ -2,41 +2,25 @@
 from catboost import CatBoostClassifier
 from imblearn.under_sampling import TomekLinks
 from lightgbm import LGBMClassifier
-from scipy.stats import chi2_contingency
 from sklearn.cluster import KMeans
 from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier, VotingClassifier, AdaBoostClassifier
 from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import (accuracy_score, precision_score, recall_score, f1_score, roc_auc_score, confusion_matrix,
-                             classification_report, RocCurveDisplay, roc_curve, auc, precision_recall_curve)
-from sklearn.model_selection import train_test_split, GridSearchCV, cross_validate, validation_curve, RandomizedSearchCV
+from sklearn.metrics import (roc_curve, auc, precision_recall_curve)
+from sklearn.model_selection import train_test_split, GridSearchCV, cross_validate
 from sklearn.neighbors import KNeighborsClassifier, LocalOutlierFactor
-from sklearn.preprocessing import LabelEncoder, OrdinalEncoder, RobustScaler, StandardScaler
+from sklearn.preprocessing import OrdinalEncoder, RobustScaler
 from sklearn.svm import SVC
-from sklearn.tree import DecisionTreeClassifier, export_graphviz, export_text
+from sklearn.tree import DecisionTreeClassifier
 from xgboost import XGBClassifier
-import graphviz
-import joblib
 import matplotlib.pyplot as plt
-import missingno as msno
 import numpy as np
-import pandas as pd
 import seaborn as sns
-import warnings
 from collections import Counter
-from sklearn.datasets import make_classification
-from imblearn.over_sampling import SMOTE
-from matplotlib import pyplot
-from numpy import where
 from sklearn.metrics import classification_report
 from sklearn.impute import KNNImputer
-from statsmodels.stats.outliers_influence import variance_inflation_factor
-import warnings
-warnings.simplefilter(action="ignore")
-import streamlit as st
 import warnings
 warnings.simplefilter(action="ignore")
 import pandas as pd
-warnings.simplefilter(action="ignore")
 pd.set_option('display.max_columns', None)
 pd.set_option('display.width', 170)
 pd.set_option('display.max_rows', None)
