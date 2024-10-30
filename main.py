@@ -380,6 +380,7 @@ df["Income_Category"] = df["Income_Category"].round().astype("Int64")
 
 cat_cols, num_cols, cat_but_car = grab_col_names(df)
 
+df.to_csv("cleanedBankChurners.csv")
 
 # One-hot encoding
 df = one_hot_encoder(df, ["Marital_Status",
